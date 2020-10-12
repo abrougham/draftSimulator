@@ -26,7 +26,7 @@ library(shinyjs)
 library(htmlwidgets)
 library(stringi)
 
-# Test string
+# Test string 
 
 # Prelims / Data #
 setwd("/Volumes/AARON USB/Projects/AFL Draft Simulator/draftSimulator")
