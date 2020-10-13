@@ -25,19 +25,20 @@ library(sortable)
 library(shinyjs)
 library(htmlwidgets)
 library(stringi)
+library(sjmisc)
 
 # Test string 
 
 # Prelims / Data #
-setwd("/Volumes/AARON USB/Projects/AFL Draft Simulator/draftSimulator")
 
 Teams_Data         <- read_excel("Teams_Data.xlsx")
 Draftee_Data       <- read_excel("Draftee_Data.xlsx")
-Draft_Order        <- read_excel("Draft_Order_2019.xlsx") %>% mutate( Round = as.numeric(gsub(x = Round , pattern = "Round " , replacement = "")))
-Pick_Points        <- read_excel("Draft_Order_2020.xlsx") %>% mutate( Round = as.numeric(gsub(x = Round , pattern = "Round " , replacement = ""))) %>% select(Round,Pick,Points) 
+Draft_Order        <- read_excel("Draft_Order_2020.xlsx") %>% mutate( Round = as.numeric(gsub(x = Round , pattern = "Round " , replacement = "")))
+Pick_Points        <- read_excel("Draft_Order_2020.xlsx") %>% mutate( Round = as.numeric(gsub(x = Round , pattern = "Round " , replacement = ""))) %>% select(Round,Pick,Points,FuturePts) 
 Selected_Table     <- data.frame("Pick" = numeric() , "Team" = character() , "Player" = character())
-Draft_Order_Future <- read_excel("Draft_Order_2020.xlsx") %>% mutate( Round = as.numeric(gsub(x = Round , pattern = "Round " , replacement = "")))
+Draft_Order_Future <- read_excel("Draft_Order_2021.xlsx") %>% mutate( Round = as.numeric(gsub(x = Round , pattern = "Round " , replacement = "")))
 LogTable           <- data.frame("No" = numeric() , "Type" = character() , "Details" = character())
+RoundImg           <- read_excel("RoundImg.xlsx")
 
 twitterTimeline <- function(href, ...) {
   tagList(
@@ -46,7 +47,12 @@ twitterTimeline <- function(href, ...) {
   )
 }
 
-
+bsModalNoClose <-function(...) {
+  b = bsModal(...)
+  b[[2]]$`data-backdrop` = "static"
+  b[[2]]$`data-keyboard` = "false"
+  return(b)
+}
 
 customTheme <- shinyDashboardThemeDIY(
   ######
@@ -184,11 +190,11 @@ ui = dashboardPagePlus(collapse_sidebar = TRUE, useShinyjs(),
     tags$head(tags$link(rel="shortcut icon", href= "https://i.ibb.co/C2KMp08/Sim-Logo.png")),
     
     # - Footer text & alignment
-    div(class = "sticky_footer", HTML(paste0("Version 1.2.7","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;")), align = 'right'), 
+    div(class = "sticky_footer", HTML(paste0("Version 1.2.9","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;")), align = 'right'), 
     
     # - Link to CSS stylesheet
     tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
-              tags$script(async = NA, src = "https://platform.twitter.com/widgets.js")),
+              tags$script(async = NA, src = "https://platform.twitter.com/widgets.js")), 
     
     
     
@@ -196,7 +202,8 @@ ui = dashboardPagePlus(collapse_sidebar = TRUE, useShinyjs(),
     #       Settings Modal        #
     ###############################
     #####
-    bsModal(id = "Sett_modal", trigger = "settingsModal", "" , # Empty string is there for the header, just leave it. Trust me.
+    bsModalNoClose(id = "Sett_modal", trigger = "settingsModal", "" ,  # Empty string is there for the header, just leave it. Trust me.
+                
             
             fluidRow(
               tabBox(width = 12,id = "settingsTab", title = tagList(icon("gear"), "Sim Settings"),
@@ -316,8 +323,8 @@ ui = dashboardPagePlus(collapse_sidebar = TRUE, useShinyjs(),
     ###############################
     #####
     bsModal(id = "trade_modal", trigger = "trade_btn", size = 'large'  , "",
-            
-            column(12,offset = 7 ,selectizeInput(inputId = "tradeWith_btn" , label = "Select Team To Trade Current Pick With" , choices = c(unique(Teams_Data$Team))),
+
+            column(12,offset = 7 ,selectizeInput(inputId = "tradeWith_btn" , label = "Select Team To Trade Current Pick With" , choices = c("",setdiff( c(unique(Teams_Data$Team)) , "Adelaide" )) , selected = c("",setdiff( c(unique(Teams_Data$Team)) , "Adelaide" ))[2]  ),
                    
                    br()),
             
@@ -479,7 +486,7 @@ server <- function(input, output, session) {
   counter  <- reactiveValues(countervalue = 1)
   
   # Trade Logic Default Value (101 = Logic OFF - all trades will accept)
-  thresh   <- reactiveValues(hold = 101) 
+  thresh <- reactiveValues(hold = -101) 
   
   # These vars control the MaterialSwitch() (used to make sure the switch that on remains on when user re-opens tab)
   #####
@@ -504,6 +511,13 @@ server <- function(input, output, session) {
   # Variable for updating the sliderInput inside close button and keeping the slider at the time the user set
   pickvar <- reactiveValues(val = "2 min.")
   
+  # Variable for extra time length (set to 20 as default)
+  ## - 20 only hardcoded here as a default setting upon opening app - dynamic from there out
+  moreTime  <- reactiveValues(time = 20)
+  
+  # Variable for updating the sliderInput inside close button and keeping the slider at the time the user set
+  pickvar <- reactiveValues(val = "2 min.")
+  
   # Base time - when user changes pick time input and time expires, this is the time it resets to (changes with IF/ELSE's) - pickVar$val decrements so cant use
   ## - 120 only hardcoded here as a default setting upon opening app - dynamic from there out
   base <- reactiveValues(time = 120)
@@ -516,6 +530,12 @@ server <- function(input, output, session) {
     toggleModal(session, "trade_modal", "open")
   })
   
+  # tmp storage table
+  Selected_Table_tmp <- data.frame("Pick" = numeric() , "Team" = character() , "Player" = character())
+  
+  # Display the team currently on the clock (Upon launching app) 
+  output$OnTheClock_Team <- renderText({HTML(paste0("<b>","On The Clock: ","</b>", Draft_Order[counter$countervalue,3]))}) 
+
   # Switches (these control the functionality of making sure never more than one switch is on at a time)
   #####
   
@@ -590,13 +610,51 @@ server <- function(input, output, session) {
   })
   #####
 
-# This if else determines whats actually been turned On/Off by the user when they click the close button (closeSettings) & exit (easyClose = F so cant bypass)
-# - Also ensures when open back up the settings, the switches are on/off as they left them!  
+  # - Modal that appears upon launching app
+  ##### 
+  showModal(modalDialog(
+    size = 'l',
+    easyClose = F , 
+    
+    fluidRow(
+      
+      column(12, align="center",
+             div(style="display: inline-block;",img(src = "https://websites.sportstg.com/pics/00/01/61/66/1616625_1_O.jpg" , height=110, width=200)),
+             div(style="display: inline-block;",img(src = "https://i.ibb.co/KyWFW0w/Screen-Shot-2020-09-27-at-12-16-01-pm.png", height=205 , width=320)),
+             div(style="display: inline-block;",img(src = "https://1000logos.net/wp-content/uploads/2018/07/AFL-Logo.png" , height=115, width=200))
+      ),
+      
+      fluidRow(
+        column(12,align = 'center',
+               HTML(paste0(h1(tags$b("Welcome to the 2020 AFL Draft Simulator")), "\n",
+                           br(),
+                           br(),
+                           column(12 , align = 'left',                   
+                                  h4(HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;',paste0("• Simulate the entire 2020 draft yourself including bids & trades."))) , "\n",
+                                  h4(HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;',paste0("• Head to  ", tagList(icon("gears"), "Settings  "), "in the top right corner to adjust the simulation options."))) , "\n" , 
+                                  h4(HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;',paste0("• Keep track of the draft, which players still remain & the live twitter reactions to each pick as it falls."))) , "\n" ,
+                                  br(),
+                           )
+               )
+               )
+        )
+      ),
+      
+      
+    ),
+    
+    footer = actionBttn(inputId = "closeDrafted",label = "Close",color = 'primary',size = 'sm')))
+  #####
   
-
+  # - Modal for settings
+  #####
    observeEvent(input$closeSettings, { 
      
+     # This closes the bsModal Settings modal when close button in that modal is pushed
      toggleModal(session, modalId = "Sett_modal", toggle = "close")   
+
+     # This if else determines whats actually been turned On/Off by the user when they click the close button (closeSettings) & exit (easyClose = F so cant bypass)
+     # - Also ensures when open back up the settings, the switches are on/off as they left them!  
 
      # - Pick Time IF/ELSE
      if (input$pickTime == "30 sec."){
@@ -615,36 +673,64 @@ server <- function(input, output, session) {
      
      # - Trade Logic IF/ELSE
      #####
-     if (input$diffOnOff == T) {
+     
+     ### - these control the range of possible outcomes when user plays with ON/OFF & Difficulty switches
+     # - (outcomes: ON w/ Easy, Med or Hard Selected, ON with nothing selected (revert to default), OFF// )
+     
+     # If the trade button logic ON:
+     if (input$diffOnOff == T & input$easyDiff == T) {
+       
+         onoffVar$status <- TRUE
+       
+         easyVar$status <- TRUE
+         medVar$status  <- FALSE
+         hardVar$status <- FALSE
+         thresh$hold <- -5
+         
+       } else if (input$diffOnOff == T & input$medDiff == T) { 
          
          onoffVar$status <- TRUE
-
-         if (input$easyDiff == T) {
-           easyVar$status <- TRUE
-           medVar$status  <- FALSE
-           hardVar$status <- FALSE
-           thresh$hold <- 40
-           
-         } else if (input$medDiff == T) { 
-           easyVar$status <- FALSE
-           medVar$status  <- TRUE
-           hardVar$status <- FALSE
-           thresh$hold <- 25
-           
-         } else {
-           easyVar$status <- FALSE
-           medVar$status  <- FALSE
-           hardVar$status <- TRUE
-           thresh$hold <- 10
-         }
          
-       } else {
+         easyVar$status <- FALSE
+         medVar$status  <- TRUE
+         hardVar$status <- FALSE
+         thresh$hold <- 10
+         
+       } else if (input$diffOnOff == T & input$hardDiff == T) {
+         
+         onoffVar$status <- TRUE
+         
+         easyVar$status <- FALSE
+         medVar$status  <- FALSE
+         hardVar$status <- TRUE
+         thresh$hold <- 25
+         
+       } else if (input$diffOnOff == F) {
+         
          onoffVar$status <- FALSE
+         
          easyVar$status  <- FALSE
          medVar$status   <- FALSE
          hardVar$status  <- FALSE
-         thresh$hold <- 101
+         thresh$hold <- -101
+         
+         # If the trade button logic ON but nothing selected:   
+       } else if  (input$diffOnOff == T & input$easyDiff == F & input$medDiff == F & input$hardDiff == F) {
+         
+         onoffVar$status <- FALSE
+         
+         easyVar$status  <- FALSE
+         medVar$status   <- FALSE
+         hardVar$status  <- FALSE
+         thresh$hold <- -101
+         
+         updateMaterialSwitch(session, "easyDiff", value = F)
+              updateMaterialSwitch(session, "medDiff", value = F)
+              updateMaterialSwitch(session, "hardDiff", value = F)
+              updateMaterialSwitch(session, "diffOnOff", value = F)
+         
        }
+     
      #####
      
      # - Twitter Choice IF/ELSE
@@ -704,56 +790,7 @@ server <- function(input, output, session) {
      
      removeModal()
    })
-
-
-   # Generate twitter feed (May need to repeat this black of code to get it to re-run at different points??)
-   output$tweet <- renderUI({
-     
-     column(width=12, box(width = 12,twitterTimeline(twitter$URL)),style = "height:475px; overflow-y: auto;")
-     
-   })
-
-  # - Modal that appears upon launching app
-  ##### 
-  showModal(modalDialog(
-    size = 'l',
-    easyClose = F , 
-    
-    fluidRow(
-      
-      column(12, align="center",
-             div(style="display: inline-block;",img(src = "https://websites.sportstg.com/pics/00/01/61/66/1616625_1_O.jpg" , height=110, width=200)),
-             div(style="display: inline-block;",img(src = "https://i.ibb.co/KyWFW0w/Screen-Shot-2020-09-27-at-12-16-01-pm.png", height=205 , width=320)),
-             div(style="display: inline-block;",img(src = "https://1000logos.net/wp-content/uploads/2018/07/AFL-Logo.png" , height=115, width=200))
-      ),
-      
-      fluidRow(
-        column(12,align = 'center',
-               HTML(paste0(h1(tags$b("Welcome to the 2020 AFL Draft Simulator")), "\n",
-                    br(),
-                    br(),
-        column(12 , align = 'left',                   
-                           h4(HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;',paste0("• Simulate the entire 2020 draft yourself including bids & trades."))) , "\n",
-                           h4(HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;',paste0("• Head to  ", tagList(icon("gears"), "Settings  "), "in the top right corner to adjust the simulation options."))) , "\n" , 
-                           h4(HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;',paste0("• Keep track of the draft, which players still remain & the live twitter reactions to each pick as it falls."))) , "\n" ,
-               br(),
-               )
-               )
-               )
-        )
-      ),
-      
-      
-    ),
-    
-    footer = actionBttn(inputId = "closeDrafted",label = "Close",color = 'primary',size = 'sm')))
   #####
-  
-  # tmp storage table
-  Selected_Table_tmp <- data.frame("Pick" = numeric() , "Team" = character() , "Player" = character())
-
-  # Display the team currently on the clock (Upon launching app) 
-  output$OnTheClock_Team <- renderText({HTML(paste0("<b>","On The Clock: ","</b>", Draft_Order[counter$countervalue,3]))}) 
   
   # - For Trade Options Modal (1 here, 1 in trade_btn section)
   ##### 
@@ -770,7 +807,7 @@ server <- function(input, output, session) {
   })
   #####
   
-  # Next 20 Picks widgetUserBox()'s (Upon launching app) (& Developer)
+  # Next 20 Picks widgetUserBox()'s *upon launch*
   ##### 
   
   output$CurrentlyPicking <- renderUI({
@@ -827,10 +864,10 @@ server <- function(input, output, session) {
   output$userBox_2 <- renderUI({
     widgetUserBox( # 2
       title = paste0("Pick ", counter$countervalue+1,".") , 
-      subtitle = paste0(Draft_Order[counter$countervalue+1,3]) ,
+      subtitle = paste0(Draft_Order[1+1,3]) ,
       type = 2,
       width = 12,
-      src = "https://i.ibb.co/HxwRcLF/circle-cropped-1.png", #ifelse(counter$countervalue+1 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+1] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+1,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -845,10 +882,9 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+2,3]) ,
       type = 2,
       width = 12,
-      src = "https://i.ibb.co/c2zJPTw/circle-cropped-3.png" , #ifelse(counter$countervalue+2 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+2] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+2,3])) %>% select(BannerURL) %>% pull() , 
-      color = 'purple',
       closable = F,
       collapsible = F, 
       footer = HTML(paste0("Picks: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+2,3] %>% pull()) %>% pull(Pick) , sep="", collapse=", "),HTML('&nbsp;'),HTML('&nbsp;')," | ",HTML('&nbsp;'),HTML('&nbsp;'),"DVI Capital: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+2,3] %>% pull()) %>% summarise(pts = sum(Points)) %>% pull())))
@@ -861,7 +897,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+3,3]) ,
       type = 2,
       width = 12,
-      src = "https://i.ibb.co/0j0qpgq/circle-cropped-4.png", #ifelse(counter$countervalue+3 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+3] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+3,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -876,7 +912,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+4,3]) ,
       type = 2,
       width = 12,
-      src = "https://i.ibb.co/p4cqR0h/circle-cropped-6.png", #ifelse(counter$countervalue+4 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+4] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+4,3])) %>% select(BannerURL) %>% pull() , 
       color = 'green',
@@ -892,7 +928,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+5,3]) ,
       type = 2,
       width = 12,
-      src = "https://i.ibb.co/s2k0jxV/circle-cropped-7.png", #ifelse(counter$countervalue+5 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+5] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+5,3])) %>% select(BannerURL) %>% pull() , 
       color = 'green',
@@ -908,7 +944,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+6,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+6 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+6] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+6,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -923,7 +959,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+7,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+7 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+7] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+7,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -938,7 +974,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+8,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+8 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+8] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+8,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -953,7 +989,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+9,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+9 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+9] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+9,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -968,7 +1004,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+10,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+10 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+10] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+10,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -983,7 +1019,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+11,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+11 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+11] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+11,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -998,7 +1034,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+12,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+12 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+12] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+12,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1013,7 +1049,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+13,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+13 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+13] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+13,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1028,7 +1064,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+14,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+14 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+14] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+14,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1043,7 +1079,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+15,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+15 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+15] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+15,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1058,7 +1094,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+16,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+16 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+16] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+16,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1073,7 +1109,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+17,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+17 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+17] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+17,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1088,7 +1124,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+18,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+18 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+18] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+18,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1103,7 +1139,7 @@ server <- function(input, output, session) {
       subtitle = paste0(Draft_Order[counter$countervalue+19,3]) ,
       type = 2,
       width = 12,
-      src = ifelse(counter$countervalue+19 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+      src = paste0(Draft_Order$Round[counter$countervalue+19] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
       background = T,
       backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+19,3])) %>% select(BannerURL) %>% pull() , 
       closable = F,
@@ -1142,11 +1178,11 @@ server <- function(input, output, session) {
     
     box(width = 9,
       tags$div(h3("Dev Notes")),
-      tags$b(h6("(Version 1.2.5)")),
+      tags$b(h6("(Version 1.2.9)")),
       tags$br(),
       
       tags$div("Bug Fixes:"),
-      tags$code("• No longer crashes when players tied to Fremantle are bid on"),
+      tags$code("•"),
       tags$br(),
       #tags$br(),
       tags$code("•"),
@@ -1160,16 +1196,16 @@ server <- function(input, output, session) {
       tags$br(),
       
       tags$div("Updates:"),
-      tags$code("• Modals with team logos, text & layout completed"),
+      tags$code("•"),
       tags$br(),
       tags$br(),
-      tags$code("• Future pick deficit pick sliding now functioning"),
+      tags$code("•"),
       tags$br(),
       tags$br(),
-      tags$code("• Trade modal now works for all pick boxes - Team A + Team B"),
+      tags$code("•"),
       tags$br(),
       tags$br(),
-      tags$code("• Timer functionality now fully functional - but not yet dynamic to user input"),
+      tags$code("•"),
       tags$br(),
     )
     
@@ -1334,15 +1370,25 @@ server <- function(input, output, session) {
     
     
 #           #
-############# - End of upon app launching stuff    
+############# - End of app launching stuff    
 #           #
+  
+  ###############################
+  #        Twitter Feed         #
+  ###############################
+  ##### 
+  output$tweet <- renderUI({
+    
+    # Generate twitter feed (May need to repeat this black of code to get it to re-run at different points??)
+    column(width=12, box(width = 12,twitterTimeline(twitter$URL)),style = "height:475px; overflow-y: auto;")
+    
+  })
+  #####
   
   ###############################
   #         Pass Button         #
   ###############################
   observeEvent(input$pass_btn, {
-    
-#    browser()
     
     # - Pick Time IF/ELSE *pass button*
     if (input$pickTime == "30 sec."){
@@ -2093,13 +2139,23 @@ server <- function(input, output, session) {
     Selected_Table <<- as.data.frame(rbind(Selected_Table,Selected_Table_tmp))
     Selected_Table <<- na.omit(Selected_Table)
     
+    # Log the trade in LogTable
+    Log_tmp <- data.frame("No" = numeric() , "Type" = character() , "Details" = character())
+    Log_tmp[1,1] <- nrow(LogTable) + 1
+    Log_tmp[1,2] <- "Bid"
+    Log_tmp[1,3] <- paste0(Draft_Order[counter$countervalue,3] %>% pull(), " bid on ", input$Player_Select, " at Pick ",counter$countervalue, br(),
+                           "The bid was NOT matched by ", Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Ties))
+    
+    LogTable <<- as.data.frame(rbind(LogTable,Log_tmp))
+    
+    
     # This is the updated player pool that doesnt include the players that have been drafted
     UpdatedPool <- reactive({ sort(c(setdiff(Draftee_Data$Player , Selected_Table$Player))) })
     
     # This is updating the select input dropdown with the updated player pool (UpdatedPool())
     updatePickerInput(session , inputId = "Player_Select" , choices = UpdatedPool() , choicesOpt = list(subtext = UpdatedPool() %>% as.data.frame() %>% inner_join(. , Draftee_Data[c(1,9)] , by = c("." = "Player")) %>% mutate(Paste = ifelse(!is.na(Ties) , paste0("(",Ties,")") , paste0(""))) %>% pull(Paste)) , selected = "" ) 
     
-    # - Output Draftboard Table (subject to being moved) *still inside draft_btn*      
+    # - Output Draftboard Table (subject to being moved) *inside noMatch*      
     #####    
     output$DraftBoard <- DT::renderDataTable({ 
       
@@ -2140,6 +2196,40 @@ server <- function(input, output, session) {
       
       
     }) # close renderDataTable()
+    #####
+    
+    # - Output LogTable *inside noMatch*
+    #####
+    output$Transactions <- DT::renderDataTable({ 
+      
+      datatable(data = LogTable,
+                escape = F , 
+                # one of these below options makes Club name go over one line only! Important!
+                class = "row-bordered hover stripe nowrap order-column" , 
+                rownames = FALSE,
+                options  = list(dom = "t",
+                                columnDefs = list(list(className = 'dt-center', targets = "_all")),
+                                paging = F,
+                                searching = F,
+                                scrollX = F, 
+                                info = F,
+                                headerCallback = JS(
+                                  "function( thead, data, start, end, display ) {
+                                
+                                                    $('th', thead).css('border-bottom', '2px solid #FD1300')
+                                
+                                                    $(thead).closest('thead').find('th').eq(0).css('background-color', '#163C91')
+                                                    $(thead).closest('thead').find('th').eq(1).css('background-color', '#163C91')
+                                                    $(thead).closest('thead').find('th').eq(2).css('background-color', '#163C91')
+                                                    
+                                                    $(thead).closest('thead').find('th').eq(0).css('color', 'white')
+                                                    $(thead).closest('thead').find('th').eq(1).css('color', 'white')
+                                                    $(thead).closest('thead').find('th').eq(2).css('color', 'white')
+                                                    
+}"))) %>%
+        formatStyle('Details', `text-align` = 'left')
+      
+    })
     #####
     
     # Top Still Available boxes
@@ -2279,7 +2369,7 @@ server <- function(input, output, session) {
     trade_Teams           <<- unique(Teams_Data$Team)
     teamwithPick          <<- as.character(Draft_Order %>% filter(Pick == counter$countervalue) %>% pull(Actual_Pick)) 
     teamtradeWith         <<- input$tradeWith_btn
-    Team_choices          <- c("",setdiff(c(trade_Teams) , teamwithPick ))
+    Team_choices          <<- c("",setdiff(c(trade_Teams) , teamwithPick ))
     output$CurrentPick    <- renderText({ paste0("Pick: ",counter$countervalue) })
     
     Picks_A <- setdiff(c(Draft_Order %>% filter(Actual_Pick == teamwithPick) %>% pull(Pick)) , c(Selected_Table$Pick)) 
@@ -2303,10 +2393,31 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, inputId = "Pick_3_A", label = "3rd Pick", selected = TeamA_3 , choices = list(Current = A3_choices , Future = A3_choices_future ))
     updateSelectizeInput(session, inputId = "Pick_4_A", label = "4th Pick", selected = TeamA_4 , choices = list(Current = A4_choices , Future = A4_choices_future ))
     
+    teamwithPickPicks  <<- c(counter$countervalue, TeamA_2, TeamA_3, TeamA_4)
+    
+    
+    # IF future picks are involved, sum TeamB_DVI (*** may be a better way to do this)
+    if( str_contains(teamwithPickPicks , "Fut.") == T ) {
+      
+      TeamA_Futures <- teamwithPickPicks %>% str_subset(pattern = "Fut. ")
+      
+      TeamA_DVI <- Draft_Order_Future %>%
+        slice(which(Draft_Order_Future$Actual_Pick == teamwithPick & Draft_Order_Future$Round %in% gsub(x = gsub("([0-9]+).*$", "\\1", TeamA_Futures), pattern = "Fut. " ,  replacement = "") )) %>%
+        summarise(FutTot = sum(FuturePts)) %>% pull(FutTot) +
+        sum(na.omit(c(as.numeric(Pick_Points$Points[counter$countervalue]),
+                      as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_A)]),
+                      as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_A)]),
+                      as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_A)]))) + 200) # The +200 is just an additional kicker
+      
+    } else {
+    
     TeamA_DVI <- sum(na.omit(c(as.numeric(Pick_Points$Points[counter$countervalue]),
                                as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_A)]),
                                as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_A)]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_A)]))) + 300)
+                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_A)]))) + 200)
+    
+    }
+    
     #####
     
     # - RHS of trade modal
@@ -2331,24 +2442,53 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, inputId = "Pick_3_B", label = "3rd Pick", selected = TeamB_3 , choices = list(Current = B3_choices , Future = B3_choices_future ))
     updateSelectizeInput(session, inputId = "Pick_4_B", label = "4th Pick", selected = TeamB_4 , choices = list(Current = B4_choices , Future = B4_choices_future ))
     
-    TeamB_DVI <- sum(na.omit(c(as.numeric(Pick_Points$Points[as.numeric(input$Pick_1_B)]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_B)]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_B)]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_B)]))))
+    teamtradeWithPicks <<- c(TeamB_1, TeamB_2, TeamB_3, TeamB_4) # "6","Fut. 1st (1)","Fut. 2nd (19)","") #
+    
+    # print(teamtradeWithPicks)
+    
+    # IF future picks are involved, sum TeamB_DVI (*** may be a better way to do this)
+    if( str_contains(teamtradeWithPicks , "Fut.") == T ) {
+
+    TeamB_Futures <- teamtradeWithPicks %>% str_subset(pattern = "Fut. ")
+
+    TeamB_DVI <- Draft_Order_Future %>%
+     slice(which(Draft_Order_Future$Actual_Pick == teamtradeWith & Draft_Order_Future$Round %in% gsub(x = gsub("([0-9]+).*$", "\\1", TeamB_Futures),pattern = "Fut. " ,  replacement = "") )) %>%
+     summarise(FutTot = sum(FuturePts)) %>% pull(FutTot) +
+     sum(na.omit(c(as.numeric(Pick_Points$Points[as.numeric(input$Pick_1_B)]),
+                   as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_B)]),
+                   as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_B)]),
+                   as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_B)]))))
+
+    } else {
+      
+      TeamB_DVI <- sum(na.omit(c(as.numeric(Pick_Points$Points[as.numeric(input$Pick_1_B)]),
+                                 as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_B)]),
+                                 as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_B)]),
+                                 as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_B)]))))
+    }
+    #####
+
+    
     #####
     
     # - Trade Modal Interest Bar & Variables
     #####
-    interestLevel  <<- (TeamB_DVI/TeamA_DVI)*100
+
+    interestLevel  <<-  ( ((TeamB_DVI/TeamA_DVI)*100) - thresh$hold )
     
     interestColour <<- ifelse(interestLevel <= 40, "danger" , 
                        ifelse(interestLevel > 40 & interestLevel <= 80, "warning" , 
                        ifelse(interestLevel >80 , "success" , "info")))
     
+    #print(paste0("Team A :",TeamA_DVI,"\n",
+    #             "Team B :",TeamB_DVI))
+    
+    print(paste0("Normal: ", ((TeamB_DVI/TeamA_DVI)*100)))
+    print(paste0("Adjust.: ", ( ((TeamB_DVI/TeamA_DVI)*100) - thresh$hold )))
     
     output$TradeInterest <- renderUI({
       fluidRow(align = 'center',
-               column(8,progressBar(id = "tradeInterest", title = interestLevel, value = interestLevel , status = interestColour, striped = TRUE) , offset = 2),
+               column(8,progressBar(id = "tradeInterest", title = "Trade Interest:", value = interestLevel , status = interestColour, striped = TRUE) , offset = 2),
                br(),
                br(),
                br(),
@@ -2357,9 +2497,7 @@ server <- function(input, output, session) {
     })
     #####
     
-    teamwithPickPicks  <<- c(counter$countervalue, TeamA_2, TeamA_3, TeamA_4)
-    teamtradeWithPicks <<- c(TeamB_1, TeamB_2, TeamB_3, TeamB_4)
-    print(teamtradeWithPicks)
+    
     
   })  
   #####
@@ -2369,7 +2507,7 @@ server <- function(input, output, session) {
   ################################
   observeEvent(input$submitTrade_btn, {
     
-    if( interestLevel >= (100 - thresh$hold) ) {
+    if( interestLevel > 90 ) {
       
       # Close the trade options modal 
       toggleModal(session, modalId = "trade_modal", toggle = "close")   
@@ -2440,13 +2578,16 @@ server <- function(input, output, session) {
       
      
 
-      # For-loop to swap picks around in Draft_Order DF
+      ### - For-loop to swap picks around in Draft_Order DF - ###
+      
+      # Team B -- > Team A
       for (i in 1:length(teamtradeWithPicks)) {
         
         Draft_Order$Actual_Pick[teamtradeWithPicks[i]] <<- teamwithPick
         
       }
       
+      # Team A --- > Team B
       for (i in 1:length(teamwithPickPicks)) {
 
         Draft_Order$Actual_Pick[teamwithPickPicks[i]] <<- teamtradeWith
@@ -2454,7 +2595,20 @@ server <- function(input, output, session) {
       }
       
       
-      # This ifelse will trigger if future picks have actually been involved in the trade
+      # TEAM A FUTURES - This ifelse will trigger if future picks have actually been involved in the trade
+      if( length(teamWithPicksPicks_Future != 0)) {
+        
+        # Swap the future picks around 
+        for (j in 1:length(teamWithPicksPicks_Future)) {
+          
+          Draft_Order_Future$Actual_Pick[teamWithPicksPicks_Future[j]] <<- teamtradeWith
+          
+        }
+        
+      }
+      
+      
+      # TEAM B FUTURES -  This ifelse will trigger if future picks have actually been involved in the trade
       if( length(teamtradeWithPicks_Future != 0)) {
         
         # Swap the future picks around 
@@ -2564,10 +2718,10 @@ server <- function(input, output, session) {
       output$userBox_2 <- renderUI({
         widgetUserBox( # 2
           title = paste0("Pick ", counter$countervalue+1,".") , 
-          subtitle = paste0(Draft_Order[counter$countervalue+1,3]) ,
+          subtitle = paste0(Draft_Order[1+1,3]) ,
           type = 2,
           width = 12,
-          src = "https://i.ibb.co/HxwRcLF/circle-cropped-1.png", #ifelse(counter$countervalue+1 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+1] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+1,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2582,10 +2736,9 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+2,3]) ,
           type = 2,
           width = 12,
-          src = "https://i.ibb.co/c2zJPTw/circle-cropped-3.png" , #ifelse(counter$countervalue+2 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+2] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+2,3])) %>% select(BannerURL) %>% pull() , 
-          color = 'purple',
           closable = F,
           collapsible = F, 
           footer = HTML(paste0("Picks: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+2,3] %>% pull()) %>% pull(Pick) , sep="", collapse=", "),HTML('&nbsp;'),HTML('&nbsp;')," | ",HTML('&nbsp;'),HTML('&nbsp;'),"DVI Capital: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+2,3] %>% pull()) %>% summarise(pts = sum(Points)) %>% pull())))
@@ -2598,7 +2751,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+3,3]) ,
           type = 2,
           width = 12,
-          src = "https://i.ibb.co/0j0qpgq/circle-cropped-4.png", #ifelse(counter$countervalue+3 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+3] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+3,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2613,7 +2766,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+4,3]) ,
           type = 2,
           width = 12,
-          src = "https://i.ibb.co/p4cqR0h/circle-cropped-6.png", #ifelse(counter$countervalue+4 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+4] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+4,3])) %>% select(BannerURL) %>% pull() , 
           color = 'green',
@@ -2629,7 +2782,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+5,3]) ,
           type = 2,
           width = 12,
-          src = "https://i.ibb.co/s2k0jxV/circle-cropped-7.png", #ifelse(counter$countervalue+5 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+5] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+5,3])) %>% select(BannerURL) %>% pull() , 
           color = 'green',
@@ -2645,7 +2798,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+6,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+6 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+6] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+6,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2660,7 +2813,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+7,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+7 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+7] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+7,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2675,7 +2828,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+8,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+8 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+8] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+8,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2690,7 +2843,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+9,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+9 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+9] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+9,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2705,7 +2858,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+10,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+10 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+10] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+10,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2720,7 +2873,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+11,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+11 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+11] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+11,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2735,7 +2888,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+12,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+12 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+12] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+12,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2750,7 +2903,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+13,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+13 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+13] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+13,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2765,7 +2918,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+14,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+14 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+14] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+14,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2780,7 +2933,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+15,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+15 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+15] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+15,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2795,7 +2948,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+16,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+16 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+16] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+16,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2810,7 +2963,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+17,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+17 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+17] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+17,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2825,7 +2978,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+18,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+18 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+18] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+18,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2840,7 +2993,7 @@ server <- function(input, output, session) {
           subtitle = paste0(Draft_Order[counter$countervalue+19,3]) ,
           type = 2,
           width = 12,
-          src = ifelse(counter$countervalue+19 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+          src = paste0(Draft_Order$Round[counter$countervalue+19] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
           background = T,
           backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+19,3])) %>% select(BannerURL) %>% pull() , 
           closable = F,
@@ -2848,7 +3001,6 @@ server <- function(input, output, session) {
           footer = HTML(paste0("Picks: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+19,3] %>% pull()) %>% pull(Pick) , sep="", collapse=", "),HTML('&nbsp;'),HTML('&nbsp;')," | ",HTML('&nbsp;'),HTML('&nbsp;'),"DVI Capital: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+19,3] %>% pull()) %>% summarise(pts = sum(Points)) %>% pull())))
         )
       })
-      
       #####
       
       # - Output Draftboard Table *still inside submitTrade_btn*      
@@ -3242,10 +3394,10 @@ server <- function(input, output, session) {
           output$userBox_2 <- renderUI({
             widgetUserBox( # 2
               title = paste0("Pick ", counter$countervalue+1,".") , 
-              subtitle = paste0(Draft_Order[counter$countervalue+1,3]) ,
+              subtitle = paste0(Draft_Order[1+1,3]) ,
               type = 2,
               width = 12,
-              src = "https://i.ibb.co/HxwRcLF/circle-cropped-1.png", #ifelse(counter$countervalue+1 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+1] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+1,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3260,10 +3412,9 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+2,3]) ,
               type = 2,
               width = 12,
-              src = "https://i.ibb.co/c2zJPTw/circle-cropped-3.png" , #ifelse(counter$countervalue+2 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+2] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+2,3])) %>% select(BannerURL) %>% pull() , 
-              color = 'purple',
               closable = F,
               collapsible = F, 
               footer = HTML(paste0("Picks: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+2,3] %>% pull()) %>% pull(Pick) , sep="", collapse=", "),HTML('&nbsp;'),HTML('&nbsp;')," | ",HTML('&nbsp;'),HTML('&nbsp;'),"DVI Capital: ",paste0(Draft_Order %>% filter(Actual_Pick == Draft_Order[counter$countervalue+2,3] %>% pull()) %>% summarise(pts = sum(Points)) %>% pull())))
@@ -3276,7 +3427,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+3,3]) ,
               type = 2,
               width = 12,
-              src = "https://i.ibb.co/0j0qpgq/circle-cropped-4.png", #ifelse(counter$countervalue+3 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+3] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+3,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3291,7 +3442,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+4,3]) ,
               type = 2,
               width = 12,
-              src = "https://i.ibb.co/p4cqR0h/circle-cropped-6.png", #ifelse(counter$countervalue+4 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+4] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+4,3])) %>% select(BannerURL) %>% pull() , 
               color = 'green',
@@ -3307,7 +3458,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+5,3]) ,
               type = 2,
               width = 12,
-              src = "https://i.ibb.co/s2k0jxV/circle-cropped-7.png", #ifelse(counter$countervalue+5 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+5] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+5,3])) %>% select(BannerURL) %>% pull() , 
               color = 'green',
@@ -3323,7 +3474,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+6,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+6 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+6] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+6,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3338,7 +3489,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+7,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+7 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+7] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+7,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3353,7 +3504,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+8,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+8 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+8] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+8,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3368,7 +3519,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+9,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+9 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+9] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+9,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3383,7 +3534,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+10,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+10 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+10] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+10,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3398,7 +3549,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+11,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+11 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+11] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+11,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3413,7 +3564,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+12,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+12 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+12] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+12,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3428,7 +3579,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+13,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+13 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+13] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+13,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3443,7 +3594,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+14,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+14 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+14] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+14,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3458,7 +3609,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+15,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+15 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+15] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+15,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3473,7 +3624,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+16,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+16 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+16] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+16,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3488,7 +3639,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+17,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+17 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+17] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+17,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3503,7 +3654,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+18,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+18 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+18] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+18,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3518,7 +3669,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+19,3]) ,
               type = 2,
               width = 12,
-              src = ifelse(counter$countervalue+19 < 18 , "https://i.ibb.co/D77dtZ0/circle-cropped-5.png" , "https://i.ibb.co/HxwRcLF/circle-cropped-1.png"),
+              src = paste0(Draft_Order$Round[counter$countervalue+19] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+19,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3564,7 +3715,7 @@ server <- function(input, output, session) {
   # observers for actionbuttons
   observeEvent(input$start, {active(TRUE)})
   observeEvent(input$stop,  {active(FALSE)})
-  observeEvent(input$reset, {pick$time <- base$time})
+  observeEvent(input$reset, {pick$time <- pick$time + 900})
   
   #####
   # - (end) Timer
@@ -3600,11 +3751,6 @@ server <- function(input, output, session) {
   
   # closes the modal that pops up when you draft a player regularly
   observeEvent(input$closeDrafted, { 
-    updateMaterialSwitch(session, "diffOnOff", value = onoffVar$status)
-    updateMaterialSwitch(session, "easyDiff" , value = easyVar$status)
-    updateMaterialSwitch(session, "medDiff"  , value = medVar$status)
-    updateMaterialSwitch(session, "hardDiff" , value = hardVar$status)
-    updateSliderTextInput(session, inputId = "pickTime", selected = pickvar$val) 
     removeModal()
   })
   
