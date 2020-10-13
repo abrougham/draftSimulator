@@ -157,318 +157,318 @@ customTheme <- shinyDashboardThemeDIY(
   ,tableBorderRowSize = "1"
 )
 
-  ######
+######
 
 ui = dashboardPagePlus(collapse_sidebar = TRUE, useShinyjs(),
-
-  header = dashboardHeaderPlus(
-  #####
-    # - To get settings modal to appear
-    tags$li(actionBttn("settingsModal", label = "Settings", icon = icon("gears"), style = "minimal", size = 'sm'),class = "dropdown")
-  #####
-  ),
-  
-  sidebar = dashboardSidebar(collapsed = TRUE,
-  #####  
-    sidebarMenu(
-      menuItem("War Room",        tabName = "WarRoom_tab",        icon = icon("fighter-jet")),
-      menuItem("List Analysis",   tabName = "ListAnalysis_tab",   icon = icon("group")), 
-      menuItem("Developer",       tabName = "Developer_tab",      icon = icon("code")))
-  #####
-  ), 
-
-  body = dashboardBody(
-    
-    # Custom theme
-    customTheme,
-    
-    # - AFL style font
-    use_googlefont("Titillium Web"),
-    use_theme(create_theme(bs_vars_font(family_sans_serif = "Titillium Web"))),
-    
-    # - Logo in broser window
-    tags$head(tags$link(rel="shortcut icon", href= "https://i.ibb.co/C2KMp08/Sim-Logo.png")),
-    
-    # - Footer text & alignment
-    div(class = "sticky_footer", HTML(paste0("Version 1.2.9","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;")), align = 'right'), 
-    
-    # - Link to CSS stylesheet
-    tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
-              tags$script(async = NA, src = "https://platform.twitter.com/widgets.js")), 
-    
-    
-    
-    ###############################
-    #       Settings Modal        #
-    ###############################
-    #####
-    bsModalNoClose(id = "Sett_modal", trigger = "settingsModal", "" ,  # Empty string is there for the header, just leave it. Trust me.
-                
-            
-            fluidRow(
-              tabBox(width = 12,id = "settingsTab", title = tagList(icon("gear"), "Sim Settings"),
-                     
-                     tabPanel(tagList(icon("hourglass-o"), "Timer Settings"),
-                              
-                              fluidRow(
-                                br(),
-                                materialSwitch(inputId = "autoDraft" , label = h5(tags$b("Autodraft ON/OFF"),br()), value = TRUE, status = "danger"),
-                                h6(tags$b("ON:"),HTML('&nbsp;'),"If time expires & no selection is made, the next best available player will be autodrafted by the CPU.",br(),
-                                   tags$b("OFF:"),"If time expires & no selection is made, user is forced to make a selection.",br(),
-                                   HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;'),"*** no bid matching will be considered if", tags$b("ON")),
-                                br()
-                              ),
-                              fluidRow(
-                                column(5,
-                                       sliderTextInput(inputId = "pickTime",label = h5(tags$b("Pick Time Limit")),grid = T, force_edges = T, choices = c("30 sec.", "1 min.", "2 min.", "3 min.", "4 min.", "5 min."), selected = "2 min."),
-                                       h6("How much time user has to make each pick.",br(),
-                                          "*** takes effect at the end of the current pick.")
-                                ),
-                                column(1),
-                                column(5,
-                                       sliderTextInput(inputId = "extraTime",label = h5(tags$b("Extra Time Given")),grid = T, force_edges = T, choices = c("20 Secs", "30 Secs", "1 min.", "2 min.")),
-                                       h6("How much extra time is added when more time is called for.")
-                                )
-                              )
-                              
-                              
-                              
-                     ),
-                     
-                     tabPanel(tagList(icon("commenting-o"), "Trade Logic"),
-                              
-                              materialSwitch(inputId = "diffOnOff", status = "danger", label = fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;',"Turn on trade logic & set difficulty - or leave it off.")))),
-                              conditionalPanel(condition = "input.diffOnOff == true",
-                                               
-                                               socialBox(width = 12,
-                                                         comments = tagList(
-                                                           boxComment(
-                                                             src = "https://freesvg.org/img/Donald-Trump-Head.png", 
-                                                             title = HTML('&nbsp;','&nbsp;',"Don. (Easy)"),
-                                                             date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "easyDiff",status = 'info', value = F))),
-                                                             fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','"This has been the worst trade deal in the history of trade deals.. maybe ever"')))
-                                                           ),
-                                                           boxComment(
-                                                             src = "",
-                                                             title = HTML('&nbsp;','&nbsp;'," (Medium)"),
-                                                             date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "medDiff",status = 'info', value = F))),
-                                                             fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','"Im standing infront of a burning house, offering you fire insurance on it. '))),
-                                                           ),
-                                                           boxComment(
-                                                             src = "https://cdn.vox-cdn.com/thumbor/qh7MvpLFRBgRDWI3ArTVBkgoOJQ=/143x0:555x275/1400x1400/filters:focal(143x0:555x275):format(jpeg)/cdn.vox-cdn.com/uploads/chorus_image/image/49145567/jonah-hill-plays-peter-brand-in-moneyball.0.0.jpg",
-                                                             title = HTML('&nbsp;','&nbsp;',"Moneyball. (Hard)"),
-                                                             date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "hardDiff",status = 'info',value = F))),
-                                                             fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','"When you get the answer youre looking for - hang up."'))),
-                                                           ) # box comment
-                                                         ) # taglist
-                                               ) # socialbox
-                              ) # conditional panel
-                     ),
-                     
-                     tabPanel(tagList(icon("desktop"), "Social Feed"),
-                              HTML(paste0("Choose which social media stream appears LIVE (in 'Social Feed' tab)",br(),
-                                          "See what the guru's & twitter community have to say as the picks are called.")),
-                              
-                              socialBox(width = 12,
-                                        comments = tagList(
-                                          boxComment(
-                                            src = "https://pbs.twimg.com/profile_images/919784515932794880/UocDziZa_400x400.jpg",
-                                            title = HTML('&nbsp;','&nbsp;',"AFL.com.au"), 
-                                            date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "aflSwitch",status = 'info', value = T))),
-                                            fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"AFL Media Twitter (@AFLcomau)")))
-                                          ),
-                                          boxComment(
-                                            src = "https://pbs.twimg.com/profile_images/759905188199084032/mMM3Rr0w_400x400.jpg",
-                                            title = HTML('&nbsp;','&nbsp;',"FoxFooty"), 
-                                            date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "foxSwitch",status = 'info', value = F))),
-                                            fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Network (@FOXFOOTY)")))
-                                          ),
-                                          boxComment(
-                                            src = "https://pbs.twimg.com/profile_images/1085053691046985728/c3mWosEe_400x400.jpg",
-                                            title = HTML('&nbsp;','&nbsp;',"Draft Central"), 
-                                            date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "draftctlSwitch",status = 'info', value = F))),
-                                            fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Platform (@DraftCentralAus)")))
-                                          ),
-                                          boxComment(
-                                            src = "https://pbs.twimg.com/profile_images/1246728570031882240/5Eo82Z7e_400x400.jpg",
-                                            title = HTML('&nbsp;','&nbsp;',"Cal Twomey"),
-                                            date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "twomeySwitch",status = 'info', value = F))),
-                                            fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Journalist (@CalTwomey)"))),                                                        
-                                          ),
-                                          boxComment(
-                                            src = "https://files.whooshkaa.com/podcasts/podcast_6554/podcast_media/98eced-am-6558-trends-podcast-cover-fa_1_.jpg",
-                                            title = HTML('&nbsp;','&nbsp;',"Marc McGowan"),
-                                            date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "mcgowanSwitch",status = 'info',value = F))),
-                                            fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Journalist (@ByMarcMcGowan)"))),
-                                          ),
-                                          boxComment(
-                                            src = "https://pbs.twimg.com/profile_images/1009637773672787968/ujJQAgjl_400x400.jpg",
-                                            title = HTML('&nbsp;','&nbsp;',"Lystics AFL"),
-                                            date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "lysticsSwitch",status = 'info',value = F))),
-                                            fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Podcast (@LysticsAFL)"))),
-                                          )
-                                        ) # taglist
-                              ) # socialbox
-                     ) # tabpanel
-              ) # tabbox
-            ), # fluidrow
-            
-            fluidRow(
-              column(12, align = "right", actionBttn(inputId = "closeSettings",label = "Accept Changes",color = 'primary',size = 'sm')))
-    ),
-    #####
-    
-    ###############################
-    #         Trade Modal         #
-    ###############################
-    #####
-    bsModal(id = "trade_modal", trigger = "trade_btn", size = 'large'  , "",
-
-            column(12,offset = 7 ,selectizeInput(inputId = "tradeWith_btn" , label = "Select Team To Trade Current Pick With" , choices = c("",setdiff( c(unique(Teams_Data$Team)) , "Adelaide" )) , selected = c("",setdiff( c(unique(Teams_Data$Team)) , "Adelaide" ))[2]  ),
-                   
-                   br()),
-            
-            fluidRow(
-              
-              column(2, uiOutput("TradeModal_Picking_img") , align = 'left') , #,style = "text-align: right; float:right" 
-              column(2, uiOutput("Picking") , align = 'right'), 
-              
-              column(4), 
-              
-              column(2, uiOutput("TradePartner") , align = 'left'), 
-              column(2, uiOutput("TradeModal_Partner_img") ,align = 'right') , 
-              
-            ),
-            
-            column(12, #align = 'center',
-                   
-                   column(5, # -- COLUMN 1
-                          
-                          fluidRow( # LHS Row 1
-                            column(width = 5, offset = 1, br(), textOutput("CurrentPick")), 
-                            column(width = 5, offset = 1, selectizeInput(inputId = "Pick_2_A", label = "2nd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                          ), 
-                          
-                          fluidRow( # LHS Row 2 
-                            column(width = 5, offset = 1, selectizeInput(inputId = "Pick_3_A", label = "3rd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                            column(width = 5, offset = 1, selectizeInput(inputId = "Pick_4_A", label = "4th Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                          ),
-                          
-                   ),
-                   
-                   column(2, img(src = "https://i.ibb.co/nkSKk66/straight-vertical-line-png-8.png", width = '7%'), align = 'center') , 
-                   
-                   
-                   column(5, # -- COLUMN 2
-                          
-                          fluidRow(# RHS Row 1 
-                            column(width = 5, selectizeInput(inputId = "Pick_1_B", label = "1st Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                            column(width = 5, offset = 1,selectizeInput(inputId = "Pick_2_B", label = "2nd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                          ),
-                          
-                          fluidRow( # RHS Row 2 
-                            column(width = 5, selectizeInput(inputId = "Pick_3_B", label = "3rd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                            column(width = 5, offset = 1, selectizeInput(inputId = "Pick_4_B", label = "4th Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
-                          ),
-                          
-                   )
-                   
-            ), # close big column (12)
-            
-            fluidRow(
-              
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              br(),
-              
-            ),
-            
-            uiOutput("TradeInterest"),
-            
-            fluidRow(
-              column(12, align = 'right', actionBttn(inputId = 'submitTrade_btn', label = 'Submit Trade', icon("sync-alt", lib = "font-awesome") , style = 'unite' , size = 'sm',color = 'primary' ))
-            )
-            
-    ), # close bsModal
-    #####
-
-    tabItems(tabItem(tabName = "WarRoom_tab" ,
-                     
-                     fluidRow(
-                       column(4,
-                              uiOutput("CurrentlyPicking"),
-                              ),
                        
-                       column(8,
-                       tabItem(tabName = "topStillAvailable",
-                             
-                             verticalTabsetPanel(color = "#163C91", selected = "Best Still Available", menuSide = "right",
-                               
-                               verticalTabPanel(title = "Draft Board" , icon = icon("list"), 
-                                                
-                                                tabBox(width = 12,id = "settingsTab", 
-                                                       
-                                                tabPanel(title = "2020", 
-                                                 dataTableOutput("DraftBoard")),
-                                                
-                                                tabPanel(title = "2021", 
-                                                 dataTableOutput("DraftBoard_Future")),
-
-                                                tabPanel(title = "Event Log", 
-                                                 dataTableOutput("Transactions")
-                                                )),
-                                                
-                                                style = "height:480px; overflow-y: auto; padding-left: 0px"),
-                               
-                               verticalTabPanel(title = "Best Still Available", icon = icon("sort-by-attributes-alt",lib = "glyphicon"), 
-                                                  uiOutput("Top5")),
-                                         
-                               verticalTabPanel(title =  "Social Feed", icon = icon(name = "twitter",lib = "font-awesome"), 
-                                                  uiOutput("tweet"))
-
-                             )
-                           )
-                         )
+                       header = dashboardHeaderPlus(
+                         #####
+                         # - To get settings modal to appear
+                         tags$li(actionBttn("settingsModal", label = "Settings", icon = icon("gears"), style = "minimal", size = 'sm'),class = "dropdown")
+                         #####
+                       ),
+                       
+                       sidebar = dashboardSidebar(collapsed = TRUE,
+                                                  #####  
+                                                  sidebarMenu(
+                                                    menuItem("War Room",        tabName = "WarRoom_tab",        icon = icon("fighter-jet")),
+                                                    menuItem("List Analysis",   tabName = "ListAnalysis_tab",   icon = icon("group")), 
+                                                    menuItem("Developer",       tabName = "Developer_tab",      icon = icon("code")))
+                                                  #####
+                       ), 
+                       
+                       body = dashboardBody(
+                         
+                         # Custom theme
+                         customTheme,
+                         
+                         # - AFL style font
+                         use_googlefont("Titillium Web"),
+                         use_theme(create_theme(bs_vars_font(family_sans_serif = "Titillium Web"))),
+                         
+                         # - Logo in broser window
+                         tags$head(tags$link(rel="shortcut icon", href= "https://i.ibb.co/C2KMp08/Sim-Logo.png")),
+                         
+                         # - Footer text & alignment
+                         div(class = "sticky_footer", HTML(paste0("Version 1.2.9","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;","&nbsp;")), align = 'right'), 
+                         
+                         # - Link to CSS stylesheet
+                         tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css"),
+                                   tags$script(async = NA, src = "https://platform.twitter.com/widgets.js")), 
+                         
+                         
+                         
+                         ###############################
+                         #       Settings Modal        #
+                         ###############################
+                         #####
+                         bsModalNoClose(id = "Sett_modal", trigger = "settingsModal", "" ,  # Empty string is there for the header, just leave it. Trust me.
+                                        
+                                        
+                                        fluidRow(
+                                          tabBox(width = 12,id = "settingsTab", title = tagList(icon("gear"), "Sim Settings"),
+                                                 
+                                                 tabPanel(tagList(icon("hourglass-o"), "Timer Settings"),
+                                                          
+                                                          fluidRow(
+                                                            br(),
+                                                            materialSwitch(inputId = "autoDraft" , label = h5(tags$b("Autodraft ON/OFF"),br()), value = TRUE, status = "danger"),
+                                                            h6(tags$b("ON:"),HTML('&nbsp;'),"If time expires & no selection is made, the next best available player will be autodrafted by the CPU.",br(),
+                                                               tags$b("OFF:"),"If time expires & no selection is made, user is forced to make a selection.",br(),
+                                                               HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;'),"*** no bid matching will be considered if", tags$b("ON")),
+                                                            br()
+                                                          ),
+                                                          fluidRow(
+                                                            column(5,
+                                                                   sliderTextInput(inputId = "pickTime",label = h5(tags$b("Pick Time Limit")),grid = T, force_edges = T, choices = c("30 sec.", "1 min.", "2 min.", "3 min.", "4 min.", "5 min."), selected = "2 min."),
+                                                                   h6("How much time user has to make each pick.",br(),
+                                                                      "*** takes effect at the end of the current pick.")
+                                                            ),
+                                                            column(1),
+                                                            column(5,
+                                                                   sliderTextInput(inputId = "extraTime",label = h5(tags$b("Extra Time Given")),grid = T, force_edges = T, choices = c("20 Secs", "30 Secs", "1 min.", "2 min.")),
+                                                                   h6("How much extra time is added when more time is called for.")
+                                                            )
+                                                          )
+                                                          
+                                                          
+                                                          
+                                                 ),
+                                                 
+                                                 tabPanel(tagList(icon("commenting-o"), "Trade Logic"),
+                                                          
+                                                          materialSwitch(inputId = "diffOnOff", status = "danger", label = fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;',"Turn on trade logic & set difficulty - or leave it off.")))),
+                                                          conditionalPanel(condition = "input.diffOnOff == true",
+                                                                           
+                                                                           socialBox(width = 12,
+                                                                                     comments = tagList(
+                                                                                       boxComment(
+                                                                                         src = "https://freesvg.org/img/Donald-Trump-Head.png", 
+                                                                                         title = HTML('&nbsp;','&nbsp;',"Don. (Easy)"),
+                                                                                         date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "easyDiff",status = 'info', value = F))),
+                                                                                         fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','"This has been the worst trade deal in the history of trade deals.. maybe ever"')))
+                                                                                       ),
+                                                                                       boxComment(
+                                                                                         src = "",
+                                                                                         title = HTML('&nbsp;','&nbsp;'," (Medium)"),
+                                                                                         date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "medDiff",status = 'info', value = F))),
+                                                                                         fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','"Im standing infront of a burning house, offering you fire insurance on it. '))),
+                                                                                       ),
+                                                                                       boxComment(
+                                                                                         src = "https://cdn.vox-cdn.com/thumbor/qh7MvpLFRBgRDWI3ArTVBkgoOJQ=/143x0:555x275/1400x1400/filters:focal(143x0:555x275):format(jpeg)/cdn.vox-cdn.com/uploads/chorus_image/image/49145567/jonah-hill-plays-peter-brand-in-moneyball.0.0.jpg",
+                                                                                         title = HTML('&nbsp;','&nbsp;',"Moneyball. (Hard)"),
+                                                                                         date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "hardDiff",status = 'info',value = F))),
+                                                                                         fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','"When you get the answer youre looking for - hang up."'))),
+                                                                                       ) # box comment
+                                                                                     ) # taglist
+                                                                           ) # socialbox
+                                                          ) # conditional panel
+                                                 ),
+                                                 
+                                                 tabPanel(tagList(icon("desktop"), "Social Feed"),
+                                                          HTML(paste0("Choose which social media stream appears LIVE (in 'Social Feed' tab)",br(),
+                                                                      "See what the guru's & twitter community have to say as the picks are called.")),
+                                                          
+                                                          socialBox(width = 12,
+                                                                    comments = tagList(
+                                                                      boxComment(
+                                                                        src = "https://pbs.twimg.com/profile_images/919784515932794880/UocDziZa_400x400.jpg",
+                                                                        title = HTML('&nbsp;','&nbsp;',"AFL.com.au"), 
+                                                                        date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "aflSwitch",status = 'info', value = T))),
+                                                                        fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"AFL Media Twitter (@AFLcomau)")))
+                                                                      ),
+                                                                      boxComment(
+                                                                        src = "https://pbs.twimg.com/profile_images/759905188199084032/mMM3Rr0w_400x400.jpg",
+                                                                        title = HTML('&nbsp;','&nbsp;',"FoxFooty"), 
+                                                                        date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "foxSwitch",status = 'info', value = F))),
+                                                                        fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Network (@FOXFOOTY)")))
+                                                                      ),
+                                                                      boxComment(
+                                                                        src = "https://pbs.twimg.com/profile_images/1085053691046985728/c3mWosEe_400x400.jpg",
+                                                                        title = HTML('&nbsp;','&nbsp;',"Draft Central"), 
+                                                                        date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "draftctlSwitch",status = 'info', value = F))),
+                                                                        fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Platform (@DraftCentralAus)")))
+                                                                      ),
+                                                                      boxComment(
+                                                                        src = "https://pbs.twimg.com/profile_images/1246728570031882240/5Eo82Z7e_400x400.jpg",
+                                                                        title = HTML('&nbsp;','&nbsp;',"Cal Twomey"),
+                                                                        date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "twomeySwitch",status = 'info', value = F))),
+                                                                        fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Journalist (@CalTwomey)"))),                                                        
+                                                                      ),
+                                                                      boxComment(
+                                                                        src = "https://files.whooshkaa.com/podcasts/podcast_6554/podcast_media/98eced-am-6558-trends-podcast-cover-fa_1_.jpg",
+                                                                        title = HTML('&nbsp;','&nbsp;',"Marc McGowan"),
+                                                                        date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "mcgowanSwitch",status = 'info',value = F))),
+                                                                        fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Journalist (@ByMarcMcGowan)"))),
+                                                                      ),
+                                                                      boxComment(
+                                                                        src = "https://pbs.twimg.com/profile_images/1009637773672787968/ujJQAgjl_400x400.jpg",
+                                                                        title = HTML('&nbsp;','&nbsp;',"Lystics AFL"),
+                                                                        date = fluidRow(column(12,offset = 9,materialSwitch(inputId = "lysticsSwitch",status = 'info',value = F))),
+                                                                        fluidRow(column(12,HTML('&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;','&nbsp;',"Podcast (@LysticsAFL)"))),
+                                                                      )
+                                                                    ) # taglist
+                                                          ) # socialbox
+                                                 ) # tabpanel
+                                          ) # tabbox
+                                        ), # fluidrow
+                                        
+                                        fluidRow(
+                                          column(12, align = "right", actionBttn(inputId = "closeSettings",label = "Accept Changes",color = 'primary',size = 'sm')))
                          ),
-                     
-                     fluidRow(
-                       tabItem(tabName = "pickBoxes",
-                               div(style = "overflow-x:scroll;",
-                                   lapply(2:19, function(i) {
-                                     div(class = "same-row",
-                                         uiOutput(paste0("userBox_", i)))
-                                   })))),
-
-                    ) ,  # tabItem (War Room)
-                     
-      
-      tabItem(tabName = "ListAnalysis_tab" , 
-              
-             
-              
-      ), # #tabItem (Draft Board)
-      
-      tabItem(tabName = "Developer_tab" , 
-              
-              uiOutput("DeveloperBox"),
-              uiOutput("DevText")
-          
-      )
-      
-    ) # tabItem(s)
-  ), # dashboard body 
-  
-  title = "AFL Draft Simulator" , 
-
+                         #####
+                         
+                         ###############################
+                         #         Trade Modal         #
+                         ###############################
+                         #####
+                         bsModal(id = "trade_modal", trigger = "trade_btn", size = 'large'  , "",
+                                 
+                                 column(12,offset = 7 ,selectizeInput(inputId = "tradeWith_btn" , label = "Select Team To Trade Current Pick With" , choices = c("",setdiff( c(unique(Teams_Data$Team)) , "Adelaide" )) , selected = c("",setdiff( c(unique(Teams_Data$Team)) , "Adelaide" ))[2]  ),
+                                        
+                                        br()),
+                                 
+                                 fluidRow(
+                                   
+                                   column(2, uiOutput("TradeModal_Picking_img") , align = 'left') , #,style = "text-align: right; float:right" 
+                                   column(2, uiOutput("Picking") , align = 'right'), 
+                                   
+                                   column(4), 
+                                   
+                                   column(2, uiOutput("TradePartner") , align = 'left'), 
+                                   column(2, uiOutput("TradeModal_Partner_img") ,align = 'right') , 
+                                   
+                                 ),
+                                 
+                                 column(12, #align = 'center',
+                                        
+                                        column(5, # -- COLUMN 1
+                                               
+                                               fluidRow( # LHS Row 1
+                                                 column(width = 5, offset = 1, br(), textOutput("CurrentPick")), 
+                                                 column(width = 5, offset = 1, selectizeInput(inputId = "Pick_2_A", label = "2nd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                               ), 
+                                               
+                                               fluidRow( # LHS Row 2 
+                                                 column(width = 5, offset = 1, selectizeInput(inputId = "Pick_3_A", label = "3rd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                                 column(width = 5, offset = 1, selectizeInput(inputId = "Pick_4_A", label = "4th Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                               ),
+                                               
+                                        ),
+                                        
+                                        column(2, img(src = "https://i.ibb.co/nkSKk66/straight-vertical-line-png-8.png", width = '7%'), align = 'center') , 
+                                        
+                                        
+                                        column(5, # -- COLUMN 2
+                                               
+                                               fluidRow(# RHS Row 1 
+                                                 column(width = 5, selectizeInput(inputId = "Pick_1_B", label = "1st Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                                 column(width = 5, offset = 1,selectizeInput(inputId = "Pick_2_B", label = "2nd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                               ),
+                                               
+                                               fluidRow( # RHS Row 2 
+                                                 column(width = 5, selectizeInput(inputId = "Pick_3_B", label = "3rd Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                                 column(width = 5, offset = 1, selectizeInput(inputId = "Pick_4_B", label = "4th Pick", choices = ""  , options = list(placeholder = 'Select Pick'))) ,
+                                               ),
+                                               
+                                        )
+                                        
+                                 ), # close big column (12)
+                                 
+                                 fluidRow(
+                                   
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   
+                                 ),
+                                 
+                                 uiOutput("TradeInterest"),
+                                 
+                                 fluidRow(
+                                   column(12, align = 'right', actionBttn(inputId = 'submitTrade_btn', label = 'Submit Trade', icon("sync-alt", lib = "font-awesome") , style = 'unite' , size = 'sm',color = 'primary' ))
+                                 )
+                                 
+                         ), # close bsModal
+                         #####
+                         
+                         tabItems(tabItem(tabName = "WarRoom_tab" ,
+                                          
+                                          fluidRow(
+                                            column(4,
+                                                   uiOutput("CurrentlyPicking"),
+                                            ),
+                                            
+                                            column(8,
+                                                   tabItem(tabName = "topStillAvailable",
+                                                           
+                                                           verticalTabsetPanel(color = "#163C91", selected = "Best Still Available", menuSide = "right",
+                                                                               
+                                                                               verticalTabPanel(title = "Draft Board" , icon = icon("list"), 
+                                                                                                
+                                                                                                tabBox(width = 12,id = "settingsTab", 
+                                                                                                       
+                                                                                                       tabPanel(title = "2020", 
+                                                                                                                dataTableOutput("DraftBoard")),
+                                                                                                       
+                                                                                                       tabPanel(title = "2021", 
+                                                                                                                dataTableOutput("DraftBoard_Future")),
+                                                                                                       
+                                                                                                       tabPanel(title = "Event Log", 
+                                                                                                                dataTableOutput("Transactions")
+                                                                                                       )),
+                                                                                                
+                                                                                                style = "height:480px; overflow-y: auto; padding-left: 0px"),
+                                                                               
+                                                                               verticalTabPanel(title = "Best Still Available", icon = icon("sort-by-attributes-alt",lib = "glyphicon"), 
+                                                                                                uiOutput("Top5")),
+                                                                               
+                                                                               verticalTabPanel(title =  "Social Feed", icon = icon(name = "twitter",lib = "font-awesome"), 
+                                                                                                uiOutput("tweet"))
+                                                                               
+                                                           )
+                                                   )
+                                            )
+                                          ),
+                                          
+                                          fluidRow(
+                                            tabItem(tabName = "pickBoxes",
+                                                    div(style = "overflow-x:scroll;",
+                                                        lapply(2:19, function(i) {
+                                                          div(class = "same-row",
+                                                              uiOutput(paste0("userBox_", i)))
+                                                        })))),
+                                          
+                         ) ,  # tabItem (War Room)
+                         
+                         
+                         tabItem(tabName = "ListAnalysis_tab" , 
+                                 
+                                 
+                                 
+                         ), # #tabItem (Draft Board)
+                         
+                         tabItem(tabName = "Developer_tab" , 
+                                 
+                                 uiOutput("DeveloperBox"),
+                                 uiOutput("DevText")
+                                 
+                         )
+                         
+                         ) # tabItem(s)
+                       ), # dashboard body 
+                       
+                       title = "AFL Draft Simulator" , 
+                       
 ) # close ui
 
 
@@ -477,11 +477,11 @@ ui = dashboardPagePlus(collapse_sidebar = TRUE, useShinyjs(),
 
 
 server <- function(input, output, session) {
-
-###############################
-#        App Launch Vars      #
-###############################  
-
+  
+  ###############################
+  #        App Launch Vars      #
+  ###############################  
+  
   # Counter (All powerful - controls basically everything)
   counter  <- reactiveValues(countervalue = 1)
   
@@ -535,7 +535,7 @@ server <- function(input, output, session) {
   
   # Display the team currently on the clock (Upon launching app) 
   output$OnTheClock_Team <- renderText({HTML(paste0("<b>","On The Clock: ","</b>", Draft_Order[counter$countervalue,3]))}) 
-
+  
   # Switches (these control the functionality of making sure never more than one switch is on at a time)
   #####
   
@@ -609,7 +609,7 @@ server <- function(input, output, session) {
     updateMaterialSwitch(session, "draftctlSwitch", value = F)
   })
   #####
-
+  
   # - Modal that appears upon launching app
   ##### 
   showModal(modalDialog(
@@ -648,148 +648,148 @@ server <- function(input, output, session) {
   
   # - Modal for settings
   #####
-   observeEvent(input$closeSettings, { 
-     
-     # This closes the bsModal Settings modal when close button in that modal is pushed
-     toggleModal(session, modalId = "Sett_modal", toggle = "close")   
-
-     # This if else determines whats actually been turned On/Off by the user when they click the close button (closeSettings) & exit (easyClose = F so cant bypass)
-     # - Also ensures when open back up the settings, the switches are on/off as they left them!  
-
-     # - Pick Time IF/ELSE
-     if (input$pickTime == "30 sec."){
-     pickvar$val <- "30 sec."
-     } else if (input$pickTime == "1 min.") {
-     pickvar$val <- "1 min."
-     } else if (input$pickTime == "2 min.") {
-       pickvar$val <- "2 min."
-     } else if (input$pickTime == "3 min.") {
-       pickvar$val <- "3 min."
-     } else if (input$pickTime == "4 min.") {
-       pickvar$val <- "4 min."
-     } else {
-       pickvar$val <- "5 min."
-     }
-     
-     # - Trade Logic IF/ELSE
-     #####
-     
-     ### - these control the range of possible outcomes when user plays with ON/OFF & Difficulty switches
-     # - (outcomes: ON w/ Easy, Med or Hard Selected, ON with nothing selected (revert to default), OFF// )
-     
-     # If the trade button logic ON:
-     if (input$diffOnOff == T & input$easyDiff == T) {
-       
-         onoffVar$status <- TRUE
-       
-         easyVar$status <- TRUE
-         medVar$status  <- FALSE
-         hardVar$status <- FALSE
-         thresh$hold <- -5
-         
-       } else if (input$diffOnOff == T & input$medDiff == T) { 
-         
-         onoffVar$status <- TRUE
-         
-         easyVar$status <- FALSE
-         medVar$status  <- TRUE
-         hardVar$status <- FALSE
-         thresh$hold <- 10
-         
-       } else if (input$diffOnOff == T & input$hardDiff == T) {
-         
-         onoffVar$status <- TRUE
-         
-         easyVar$status <- FALSE
-         medVar$status  <- FALSE
-         hardVar$status <- TRUE
-         thresh$hold <- 25
-         
-       } else if (input$diffOnOff == F) {
-         
-         onoffVar$status <- FALSE
-         
-         easyVar$status  <- FALSE
-         medVar$status   <- FALSE
-         hardVar$status  <- FALSE
-         thresh$hold <- -101
-         
-         # If the trade button logic ON but nothing selected:   
-       } else if  (input$diffOnOff == T & input$easyDiff == F & input$medDiff == F & input$hardDiff == F) {
-         
-         onoffVar$status <- FALSE
-         
-         easyVar$status  <- FALSE
-         medVar$status   <- FALSE
-         hardVar$status  <- FALSE
-         thresh$hold <- -101
-         
-         updateMaterialSwitch(session, "easyDiff", value = F)
-              updateMaterialSwitch(session, "medDiff", value = F)
-              updateMaterialSwitch(session, "hardDiff", value = F)
-              updateMaterialSwitch(session, "diffOnOff", value = F)
-         
-       }
-     
-     #####
-     
-     # - Twitter Choice IF/ELSE
-     #####
-
-     if (input$aflSwitch == T) {
-       afl$status      <- T
-       fox$status      <- FALSE
-       draftctl$status <- FALSE
-       twomey$status   <- FALSE
-       mcgowan$status  <- FALSE
-       lystics$status  <- FALSE
-       twitter$URL <- "https://twitter.com/aflcomau"
-     } else if (input$foxSwitch == T) {
-       afl$status      <- FALSE
-       fox$status      <- T
-       draftctl$status <- FALSE
-       twomey$status   <- FALSE
-       mcgowan$status  <- FALSE
-       lystics$status  <- FALSE
-       twitter$URL <- "https://twitter.com/FOXFOOTY"
-     } else if (input$draftctlSwitch == T) { 
-       afl$status      <- FALSE
-       fox$status      <- FALSE
-       draftctl$status <- T
-       twomey$status   <- FALSE
-       mcgowan$status  <- FALSE
-       lystics$status  <- FALSE
-       twitter$URL <- "https://twitter.com/DraftCentralAus"
-     } else if (input$twomeySwitch == T) { 
-       afl$status      <- FALSE
-       fox$status      <- FALSE
-       draftctl$status <- FALSE
-       twomey$status   <- T
-       mcgowan$status  <- FALSE
-       lystics$status  <- FALSE
-       twitter$URL <- "https://twitter.com/CalTwomey"
-     } else if (input$mcgowanSwitch == T) { 
-       afl$status      <- FALSE
-       fox$status      <- FALSE
-       draftctl$status <- FALSE
-       twomey$status   <- FALSE
-       mcgowan$status  <- T
-       lystics$status  <- FALSE
-       twitter$URL <- "https://twitter.com/ByMarcMcGowan"
-     } else { # (Lystics AFL)
-       afl$status      <- FALSE
-       fox$status      <- FALSE
-       draftctl$status <- FALSE
-       twomey$status   <- FALSE
-       mcgowan$status  <- FALSE
-       lystics$status  <- T
-       twitter$URL <- "https://twitter.com/LysticsAFL"
-     }   
-     
-     #####
-     
-     removeModal()
-   })
+  observeEvent(input$closeSettings, { 
+    
+    # This closes the bsModal Settings modal when close button in that modal is pushed
+    toggleModal(session, modalId = "Sett_modal", toggle = "close")   
+    
+    # This if else determines whats actually been turned On/Off by the user when they click the close button (closeSettings) & exit (easyClose = F so cant bypass)
+    # - Also ensures when open back up the settings, the switches are on/off as they left them!  
+    
+    # - Pick Time IF/ELSE
+    if (input$pickTime == "30 sec."){
+      pickvar$val <- "30 sec."
+    } else if (input$pickTime == "1 min.") {
+      pickvar$val <- "1 min."
+    } else if (input$pickTime == "2 min.") {
+      pickvar$val <- "2 min."
+    } else if (input$pickTime == "3 min.") {
+      pickvar$val <- "3 min."
+    } else if (input$pickTime == "4 min.") {
+      pickvar$val <- "4 min."
+    } else {
+      pickvar$val <- "5 min."
+    }
+    
+    # - Trade Logic IF/ELSE
+    #####
+    
+    ### - these control the range of possible outcomes when user plays with ON/OFF & Difficulty switches
+    # - (outcomes: ON w/ Easy, Med or Hard Selected, ON with nothing selected (revert to default), OFF// )
+    
+    # If the trade button logic ON:
+    if (input$diffOnOff == T & input$easyDiff == T) {
+      
+      onoffVar$status <- TRUE
+      
+      easyVar$status <- TRUE
+      medVar$status  <- FALSE
+      hardVar$status <- FALSE
+      thresh$hold <- -5
+      
+    } else if (input$diffOnOff == T & input$medDiff == T) { 
+      
+      onoffVar$status <- TRUE
+      
+      easyVar$status <- FALSE
+      medVar$status  <- TRUE
+      hardVar$status <- FALSE
+      thresh$hold <- 10
+      
+    } else if (input$diffOnOff == T & input$hardDiff == T) {
+      
+      onoffVar$status <- TRUE
+      
+      easyVar$status <- FALSE
+      medVar$status  <- FALSE
+      hardVar$status <- TRUE
+      thresh$hold <- 25
+      
+    } else if (input$diffOnOff == F) {
+      
+      onoffVar$status <- FALSE
+      
+      easyVar$status  <- FALSE
+      medVar$status   <- FALSE
+      hardVar$status  <- FALSE
+      thresh$hold <- -101
+      
+      # If the trade button logic ON but nothing selected:   
+    } else if  (input$diffOnOff == T & input$easyDiff == F & input$medDiff == F & input$hardDiff == F) {
+      
+      onoffVar$status <- FALSE
+      
+      easyVar$status  <- FALSE
+      medVar$status   <- FALSE
+      hardVar$status  <- FALSE
+      thresh$hold <- -101
+      
+      updateMaterialSwitch(session, "easyDiff", value = F)
+      updateMaterialSwitch(session, "medDiff", value = F)
+      updateMaterialSwitch(session, "hardDiff", value = F)
+      updateMaterialSwitch(session, "diffOnOff", value = F)
+      
+    }
+    
+    #####
+    
+    # - Twitter Choice IF/ELSE
+    #####
+    
+    if (input$aflSwitch == T) {
+      afl$status      <- T
+      fox$status      <- FALSE
+      draftctl$status <- FALSE
+      twomey$status   <- FALSE
+      mcgowan$status  <- FALSE
+      lystics$status  <- FALSE
+      twitter$URL <- "https://twitter.com/aflcomau"
+    } else if (input$foxSwitch == T) {
+      afl$status      <- FALSE
+      fox$status      <- T
+      draftctl$status <- FALSE
+      twomey$status   <- FALSE
+      mcgowan$status  <- FALSE
+      lystics$status  <- FALSE
+      twitter$URL <- "https://twitter.com/FOXFOOTY"
+    } else if (input$draftctlSwitch == T) { 
+      afl$status      <- FALSE
+      fox$status      <- FALSE
+      draftctl$status <- T
+      twomey$status   <- FALSE
+      mcgowan$status  <- FALSE
+      lystics$status  <- FALSE
+      twitter$URL <- "https://twitter.com/DraftCentralAus"
+    } else if (input$twomeySwitch == T) { 
+      afl$status      <- FALSE
+      fox$status      <- FALSE
+      draftctl$status <- FALSE
+      twomey$status   <- T
+      mcgowan$status  <- FALSE
+      lystics$status  <- FALSE
+      twitter$URL <- "https://twitter.com/CalTwomey"
+    } else if (input$mcgowanSwitch == T) { 
+      afl$status      <- FALSE
+      fox$status      <- FALSE
+      draftctl$status <- FALSE
+      twomey$status   <- FALSE
+      mcgowan$status  <- T
+      lystics$status  <- FALSE
+      twitter$URL <- "https://twitter.com/ByMarcMcGowan"
+    } else { # (Lystics AFL)
+      afl$status      <- FALSE
+      fox$status      <- FALSE
+      draftctl$status <- FALSE
+      twomey$status   <- FALSE
+      mcgowan$status  <- FALSE
+      lystics$status  <- T
+      twitter$URL <- "https://twitter.com/LysticsAFL"
+    }   
+    
+    #####
+    
+    removeModal()
+  })
   #####
   
   # - For Trade Options Modal (1 here, 1 in trade_btn section)
@@ -799,7 +799,7 @@ server <- function(input, output, session) {
   output$Picking <- reactive({ Draft_Order[counter$countervalue,3] %>% pull() })
   
   output$TradeModal_Picking_img <- renderUI({
-  img(src = Teams_Data %>% filter(Team == Draft_Order[counter$countervalue,3] %>% pull()) %>% pull(TeamLogo), width = '100%')
+    img(src = Teams_Data %>% filter(Team == Draft_Order[counter$countervalue,3] %>% pull()) %>% pull(TeamLogo), width = '100%')
   })
   
   output$TradeModal_Partner_img <- renderUI({
@@ -811,53 +811,53 @@ server <- function(input, output, session) {
   ##### 
   
   output$CurrentlyPicking <- renderUI({
-
-      widgetUserBox(width = 12, height = 'auto',
-            collapsible = F,
-            type = NULL,
-            boxToolSize = 'xs' ,
-            src = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue,3])) %>% select(Circle) %>% pull() ,
-            background = T,
-            backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue,3])) %>% select(BannerURL_2) %>% pull() ,
-            column(12,align = 'center',
-                   br(),
-                   br(),
-            pickerInput('Player_Select',   choices = sort(Draftee_Data %>% pull(Player)) , choicesOpt = list(subtext = Draftee_Data %>% arrange(Player) %>% mutate(Paste = ifelse(!is.na(Ties) , paste0(" (",Ties,")") , paste0(""))) %>% pull(Paste)) , options = list(title = 'Select Player To Draft Here' , `live-search` = TRUE) ),
-           
-            HTML(paste0(h2("Pick: ",counter$countervalue))) ,
-            HTML(paste0(h2(tags$b(tags$u("On The Clock:"))," ",Draft_Order[counter$countervalue,3] %>% pull()))),
-            tags$br(),
-            fluidRow(
-            column(1,offset = 4,  
-            textOutput("timeleft") , 
-            ),
-            column(6,
-            dropdown(width = '260px', 
-              
-              tags$h4("Timer Controls:"),
-              fluidRow(
-              actionBttn('start','Start', style = 'bordered', color = 'primary', size = 'sm'),
-              actionBttn('stop' ,'Pause', style = 'bordered', color = 'primary', size = 'sm'),
-              actionBttn('reset','Reset', style = 'bordered', color = 'primary', size = 'sm'),
-              br(),
-              h6("These can be adjusted via",tagList(icon("hourglass-o")),"in Settings"),
-              ),
-              style = "unite", icon = icon("gear"), size = 'xs', up = T, 
-              status = "primary",
-              animate = animateOptions(
-                exit = animations$fading_exits$fadeOutRightBig
-               )
-              )
-             )  
-            ),
-
-            tags$br(),
-            column(width = 6,  actionBttn('draft_btn', 'DRAFT', icon("crosshairs", lib = "font-awesome"), style = "unite", color = 'primary', size = 'm', block = T )),
-            column(width = 6,  actionBttn('pass_btn' , 'PASS' , icon("hand-paper", lib = "font-awesome"), style = "unite", color = 'primary', size = 'm', block = T )),
-            column(width = 12, actionBttn('trade_btn', 'TRADE', icon("handshake" , lib = "font-awesome"), style = 'unite', color = 'primary', size = 'm', block = T)),
-            
-          ),
-          
+    
+    widgetUserBox(width = 12, height = 'auto',
+                  collapsible = F,
+                  type = NULL,
+                  boxToolSize = 'xs' ,
+                  src = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue,3])) %>% select(Circle) %>% pull() ,
+                  background = T,
+                  backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue,3])) %>% select(BannerURL_2) %>% pull() ,
+                  column(12,align = 'center',
+                         br(),
+                         br(),
+                         pickerInput('Player_Select',   choices = sort(Draftee_Data %>% pull(Player)) , choicesOpt = list(subtext = Draftee_Data %>% arrange(Player) %>% mutate(Paste = ifelse(!is.na(Ties) , paste0(" (",Ties,")") , paste0(""))) %>% pull(Paste)) , options = list(title = 'Select Player To Draft Here' , `live-search` = TRUE) ),
+                         
+                         HTML(paste0(h2("Pick: ",counter$countervalue))) ,
+                         HTML(paste0(h2(tags$b(tags$u("On The Clock:"))," ",Draft_Order[counter$countervalue,3] %>% pull()))),
+                         tags$br(),
+                         fluidRow(
+                           column(1,offset = 4,  
+                                  textOutput("timeleft") , 
+                           ),
+                           column(6,
+                                  dropdown(width = '260px', 
+                                           
+                                           tags$h4("Timer Controls:"),
+                                           fluidRow(
+                                             actionBttn('start','Start', style = 'bordered', color = 'primary', size = 'sm'),
+                                             actionBttn('stop' ,'Pause', style = 'bordered', color = 'primary', size = 'sm'),
+                                             actionBttn('reset','Reset', style = 'bordered', color = 'primary', size = 'sm'),
+                                             br(),
+                                             h6("These can be adjusted via",tagList(icon("hourglass-o")),"in Settings"),
+                                           ),
+                                           style = "unite", icon = icon("gear"), size = 'xs', up = T, 
+                                           status = "primary",
+                                           animate = animateOptions(
+                                             exit = animations$fading_exits$fadeOutRightBig
+                                           )
+                                  )
+                           )  
+                         ),
+                         
+                         tags$br(),
+                         column(width = 6,  actionBttn('draft_btn', 'DRAFT', icon("crosshairs", lib = "font-awesome"), style = "unite", color = 'primary', size = 'm', block = T )),
+                         column(width = 6,  actionBttn('pass_btn' , 'PASS' , icon("hand-paper", lib = "font-awesome"), style = "unite", color = 'primary', size = 'm', block = T )),
+                         column(width = 12, actionBttn('trade_btn', 'TRADE', icon("handshake" , lib = "font-awesome"), style = 'unite', color = 'primary', size = 'm', block = T)),
+                         
+                  ),
+                  
     ) # close userbox
   })
   
@@ -1177,43 +1177,43 @@ server <- function(input, output, session) {
   output$DevText <- renderUI({
     
     box(width = 9,
-      tags$div(h3("Dev Notes")),
-      tags$b(h6("(Version 1.2.9)")),
-      tags$br(),
-      
-      tags$div("Bug Fixes:"),
-      tags$code("•"),
-      tags$br(),
-      #tags$br(),
-      tags$code("•"),
-      tags$br(),
-      #tags$br(),
-      tags$code("•") ,
-      tags$br(),
-      #tags$br(),
-      tags$code("•"),
-      tags$br(),
-      tags$br(),
-      
-      tags$div("Updates:"),
-      tags$code("•"),
-      tags$br(),
-      tags$br(),
-      tags$code("•"),
-      tags$br(),
-      tags$br(),
-      tags$code("•"),
-      tags$br(),
-      tags$br(),
-      tags$code("•"),
-      tags$br(),
+        tags$div(h3("Dev Notes")),
+        tags$b(h6("(Version 1.2.9)")),
+        tags$br(),
+        
+        tags$div("Bug Fixes:"),
+        tags$code("•"),
+        tags$br(),
+        #tags$br(),
+        tags$code("•"),
+        tags$br(),
+        #tags$br(),
+        tags$code("•") ,
+        tags$br(),
+        #tags$br(),
+        tags$code("•"),
+        tags$br(),
+        tags$br(),
+        
+        tags$div("Updates:"),
+        tags$code("•"),
+        tags$br(),
+        tags$br(),
+        tags$code("•"),
+        tags$br(),
+        tags$br(),
+        tags$code("•"),
+        tags$br(),
+        tags$br(),
+        tags$code("•"),
+        tags$br(),
     )
     
   })
   
- 
+  
   #####
-
+  
   # Top Still Available boxes
   #####
   
@@ -1227,62 +1227,62 @@ server <- function(input, output, session) {
   
   output$Top5 <- renderUI({
     
-      productList(
-
-        productListItem( # Top: 1 
-          src = Draftee_Data %>% filter(Player == Top_P1) %>% pull(Image),
-          productTitle = tags$a(href="https://www.afl.com.au/draft/prospects/jamarra-ugle-hagan", tags$b(Top_P1), target="_blank"),
-          Draftee_Data %>% filter(Player == Top_P1) %>% pull(Position), br(),
-          Draftee_Data %>% filter(Player == Top_P1) %>% pull(Club), br(),
-          productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
-          priceColor   = "success",
-        ),
-
-        productListItem( # Top: 2 
-          src = Draftee_Data %>% filter(Player == Top_P2) %>% pull(Image),
-          productTitle = Top_P2,
-          Draftee_Data %>% filter(Player == Top_P2) %>% pull(Position), br(),
-          Draftee_Data %>% filter(Player == Top_P2) %>% pull(Club), br(),
-          productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
-          priceColor   = "success",
-        ),
-        
-        productListItem( # Top: 3 
-          src = Draftee_Data %>% filter(Player == Top_P3) %>% pull(Image),
-          productTitle = Top_P3,
-          Draftee_Data %>% filter(Player == Top_P3) %>% pull(Position), br(),
-          Draftee_Data %>% filter(Player == Top_P3) %>% pull(Club), br(),
-          productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
-          priceColor   = "success",
-        ),
-        
-        productListItem( # Top: 4 
-          src = Draftee_Data %>% filter(Player == Top_P4) %>% pull(Image),
-          productTitle = Top_P4,
-          Draftee_Data %>% filter(Player == Top_P4) %>% pull(Position), br(),
-          Draftee_Data %>% filter(Player == Top_P4) %>% pull(Club), br(),
-          productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
-          priceColor   = "success",
-        ),
-        
-        productListItem( # Top: 5 
-          src = Draftee_Data %>% filter(Player == Top_P5) %>% pull(Image),
-          productTitle = Top_P5,
-          Draftee_Data %>% filter(Player == Top_P5) %>% pull(Position), br(),
-          Draftee_Data %>% filter(Player == Top_P5) %>% pull(Club), br(),
-          productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
-          priceColor   = "success",
-        ),
-        
-        productListItem( # Top: 5 
-          src = Draftee_Data %>% filter(Player == Top_P6) %>% pull(Image),
-          productTitle = Top_P6,
-          Draftee_Data %>% filter(Player == Top_P6) %>% pull(Position), br(),
-          Draftee_Data %>% filter(Player == Top_P6) %>% pull(Club), br(),
-          productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
-          priceColor   = "success",
-        ),
-      ) # productList()
+    productList(
+      
+      productListItem( # Top: 1 
+        src = Draftee_Data %>% filter(Player == Top_P1) %>% pull(Image),
+        productTitle = tags$a(href="https://www.afl.com.au/draft/prospects/jamarra-ugle-hagan", tags$b(Top_P1), target="_blank"),
+        Draftee_Data %>% filter(Player == Top_P1) %>% pull(Position), br(),
+        Draftee_Data %>% filter(Player == Top_P1) %>% pull(Club), br(),
+        productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
+        priceColor   = "success",
+      ),
+      
+      productListItem( # Top: 2 
+        src = Draftee_Data %>% filter(Player == Top_P2) %>% pull(Image),
+        productTitle = Top_P2,
+        Draftee_Data %>% filter(Player == Top_P2) %>% pull(Position), br(),
+        Draftee_Data %>% filter(Player == Top_P2) %>% pull(Club), br(),
+        productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
+        priceColor   = "success",
+      ),
+      
+      productListItem( # Top: 3 
+        src = Draftee_Data %>% filter(Player == Top_P3) %>% pull(Image),
+        productTitle = Top_P3,
+        Draftee_Data %>% filter(Player == Top_P3) %>% pull(Position), br(),
+        Draftee_Data %>% filter(Player == Top_P3) %>% pull(Club), br(),
+        productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
+        priceColor   = "success",
+      ),
+      
+      productListItem( # Top: 4 
+        src = Draftee_Data %>% filter(Player == Top_P4) %>% pull(Image),
+        productTitle = Top_P4,
+        Draftee_Data %>% filter(Player == Top_P4) %>% pull(Position), br(),
+        Draftee_Data %>% filter(Player == Top_P4) %>% pull(Club), br(),
+        productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
+        priceColor   = "success",
+      ),
+      
+      productListItem( # Top: 5 
+        src = Draftee_Data %>% filter(Player == Top_P5) %>% pull(Image),
+        productTitle = Top_P5,
+        Draftee_Data %>% filter(Player == Top_P5) %>% pull(Position), br(),
+        Draftee_Data %>% filter(Player == Top_P5) %>% pull(Club), br(),
+        productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
+        priceColor   = "success",
+      ),
+      
+      productListItem( # Top: 5 
+        src = Draftee_Data %>% filter(Player == Top_P6) %>% pull(Image),
+        productTitle = Top_P6,
+        Draftee_Data %>% filter(Player == Top_P6) %>% pull(Position), br(),
+        Draftee_Data %>% filter(Player == Top_P6) %>% pull(Club), br(),
+        productPrice = paste0("Draft Range: " , setdiff(Draftee_Data$Player , Selected_Table$Player) %>% as.data.frame() %>% rename("Player" = 1) %>% inner_join(. , Draftee_Data[,c("Player","Projected","Range")] , by = c("Player" = "Player")) %>% top_n(wt = Projected , n = -1) %>% select(Range)  %>% pull() ) ,
+        priceColor   = "success",
+      ),
+    ) # productList()
     
   })
   #####
@@ -1324,9 +1324,9 @@ server <- function(input, output, session) {
         "Pick" ,
         color = styleEqual(counter$countervalue,"white") ,
         backgroundColor = styleEqual(counter$countervalue,"#163C91"))
-
-      
-      
+    
+    
+    
   }) # close renderDataTable()
   #####
   
@@ -1367,11 +1367,11 @@ server <- function(input, output, session) {
     
   }) # close renderDataTable()
   #####
-    
-    
-#           #
-############# - End of app launching stuff    
-#           #
+  
+  
+  #           #
+  ############# - End of app launching stuff    
+  #           #
   
   ###############################
   #        Twitter Feed         #
@@ -1433,8 +1433,8 @@ server <- function(input, output, session) {
       
       
       h3(paste0(Draft_Order[counter$countervalue,3]," have passed on Pick ",counter$countervalue,".")) ,
-              br(),
-         paste0(Draft_Order[counter$countervalue+1,3]," are now on the clock with Pick ",counter$countervalue+1,"."),
+      br(),
+      paste0(Draft_Order[counter$countervalue+1,3]," are now on the clock with Pick ",counter$countervalue+1,"."),
       
       footer = actionBttn(inputId = "closePassed",label = "Close",color = 'primary',size = 'sm')
       
@@ -1506,10 +1506,10 @@ server <- function(input, output, session) {
   #          Draft Button        #
   ################################
   observeEvent(input$draft_btn, {
-
+    
     # Condition to flag modal if no player is selected
     if ( input$Player_Select == "" ) {
-    
+      
       showModal(modalDialog(title = HTML(paste("<b>","Error: ","</b>","you haven't selected a player.")),
                             footer = actionBttn(inputId = "errorClose",label = "My bad, fam.",color = 'primary',size = 'sm'),
                             br(),
@@ -1519,7 +1519,7 @@ server <- function(input, output, session) {
                             br(),
                             br(),
                             easyClose = T
-                            ))
+      ))
       
       # TIED PLAYERS - condition to eval. if player is tied to a team ()
     } else if ( Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Ties) %in% Teams_Data$Team == T  &  Draft_Order[counter$countervalue,3] %>% pull() != Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Ties) ) {
@@ -1527,30 +1527,30 @@ server <- function(input, output, session) {
       # Bid Options Modal 
       #####
       showModal(modalDialog(
-                            easyClose = F , 
-                            
-                            fluidRow(      
-
-                             column(12, align="center",
-                                     div(style="display: inline-block;",img(src = Teams_Data %>% filter(Team == Draft_Order[counter$countervalue,3] %>% pull()) %>% pull(TeamLogo), height=115, width=140)),
-                                     div(style="display: inline-block;",img(src = "https://i.ibb.co/wzpkSyn/Bid-Pending-Graphic.png", height=175, width=250)),
-                                     div(style="display: inline-block;",img(src = Teams_Data %>% filter(Team == Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Ties)) %>% pull(TeamLogo), height=115, width=140)))
-                              ),
-                            
-                            br(),
-                            br(),
-                            
-                            HTML(paste0(h4(tags$u(Draft_Order[counter$countervalue,3] %>% pull())," have bid on ", tags$b(input$Player_Select), " with Pick ", counter$countervalue,".")) ,
-                                 paste0(h4(input$Player_Select ," is tied to ", tags$u(Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Ties)), " " , Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Category) ,".")),
-                                 paste0(h4(" Would you like to match the bid for ", input$Player_Select  , " as " , Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Ties)," ?"))) ,
-                            
-                            br(),
-                            br(),
-                            footer = tagList(actionBttn(inputId = "yesMatch",label = "Match Bid",color = 'success',size = 'sm') , actionBttn(inputId = "noMatch", label = "Dont Match", color = 'danger',size = 'sm'))))
+        easyClose = F , 
+        
+        fluidRow(      
+          
+          column(12, align="center",
+                 div(style="display: inline-block;",img(src = Teams_Data %>% filter(Team == Draft_Order[counter$countervalue,3] %>% pull()) %>% pull(TeamLogo), height=115, width=140)),
+                 div(style="display: inline-block;",img(src = "https://i.ibb.co/wzpkSyn/Bid-Pending-Graphic.png", height=175, width=250)),
+                 div(style="display: inline-block;",img(src = Teams_Data %>% filter(Team == Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Ties)) %>% pull(TeamLogo), height=115, width=140)))
+        ),
+        
+        br(),
+        br(),
+        
+        HTML(paste0(h4(tags$u(Draft_Order[counter$countervalue,3] %>% pull())," have bid on ", tags$b(input$Player_Select), " with Pick ", counter$countervalue,".")) ,
+             paste0(h4(input$Player_Select ," is tied to ", tags$u(Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Ties)), " " , Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Category) ,".")),
+             paste0(h4(" Would you like to match the bid for ", input$Player_Select  , " as " , Draftee_Data %>% filter(Player == input$Player_Select ) %>% pull(Ties)," ?"))) ,
+        
+        br(),
+        br(),
+        footer = tagList(actionBttn(inputId = "yesMatch",label = "Match Bid",color = 'success',size = 'sm') , actionBttn(inputId = "noMatch", label = "Dont Match", color = 'danger',size = 'sm'))))
       #####
       
       # - +1 on counter not necessary here - do it in the yesMatch or noMatch buttons  
-     
+      
       # UN-TIED PLAYERS - condition to eval. if player isnt tied to a team. *OR* If the team player is tied to is the team that chose them
     } else if ( is.na( Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Ties) ) == T | Draft_Order[counter$countervalue,3] %>% pull() == Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Ties) ) {
       
@@ -1607,7 +1607,7 @@ server <- function(input, output, session) {
             "Pick" ,
             color = styleEqual(counter$countervalue,"white") ,
             backgroundColor = styleEqual(counter$countervalue,"#163C91"))
-
+        
       }) # close renderDataTable()
       #####
       
@@ -1687,36 +1687,36 @@ server <- function(input, output, session) {
       # Modal for when player is DRAFTED normally
       #####
       showModal(modalDialog(
-                              
-                            easyClose = T , 
-                            
-                            fluidRow(
-                         
-                              column(12, align="center",
-                                     div(style="display: inline-block;",img(src = "https://i.ibb.co/R4Zcnzq/Will-Phillips.jpg" , height=100, width=100)),
-                                     div(style="display: inline-block;",img(src = "https://i.ibb.co/xH8cbBn/Screen-Shot-2020-09-22-at-10-05-39-pm.png", height=175 , width=260)),
-                                     div(style="display: inline-block;",img(src = Teams_Data %>% filter(Team == Draft_Order[counter$countervalue,3] %>% pull() ) %>% pull(TeamLogo) , height=115, width=150))
-                              ),
-                              
-                              fluidRow(
-                                column(12,align = 'center',
-                              HTML(paste0(h1(tags$b("PICK ",counter$countervalue," - ",Draft_Order[counter$countervalue,3] %>% pull())), "\n",
-                                     h2(input$Player_Select) , "\n",
-                                     #br(),
-                                     h4(paste0(Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Club))) , "\n",
-                                     h4(paste0(Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Position))) , "\n" , 
-                                     h4(paste0(Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Height), " | " , Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Weight))) , "\n" 
-                                     ))
-                                   )
-                                 )
-                               ),
-                            
-                          
-                            
-                            footer = actionBttn(inputId = "closeDrafted",label = "Close",color = 'primary',size = 'sm')))
+        
+        easyClose = T , 
+        
+        fluidRow(
+          
+          column(12, align="center",
+                 div(style="display: inline-block;",img(src = "https://i.ibb.co/R4Zcnzq/Will-Phillips.jpg" , height=100, width=100)),
+                 div(style="display: inline-block;",img(src = "https://i.ibb.co/xH8cbBn/Screen-Shot-2020-09-22-at-10-05-39-pm.png", height=175 , width=260)),
+                 div(style="display: inline-block;",img(src = Teams_Data %>% filter(Team == Draft_Order[counter$countervalue,3] %>% pull() ) %>% pull(TeamLogo) , height=115, width=150))
+          ),
+          
+          fluidRow(
+            column(12,align = 'center',
+                   HTML(paste0(h1(tags$b("PICK ",counter$countervalue," - ",Draft_Order[counter$countervalue,3] %>% pull())), "\n",
+                               h2(input$Player_Select) , "\n",
+                               #br(),
+                               h4(paste0(Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Club))) , "\n",
+                               h4(paste0(Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Position))) , "\n" , 
+                               h4(paste0(Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Height), " | " , Draftee_Data %>% filter(Player == input$Player_Select) %>% pull(Weight))) , "\n" 
+                   ))
+            )
+          )
+        ),
+        
+        
+        
+        footer = actionBttn(inputId = "closeDrafted",label = "Close",color = 'primary',size = 'sm')))
       
       #####
-
+      
       # - Pick Time IF/ELSE  *draft normal*
       if (input$pickTime == "30 sec."){
         pick$time <- 30
@@ -1746,10 +1746,10 @@ server <- function(input, output, session) {
       
       pick$time <- base$time
       active(TRUE)
-       
+      
       # - +1 on counter IS necessary here - dont have modals extending from this to do it in like with tied players
       counter$countervalue <- counter$countervalue+1
-
+      
     } 
     
   }) 
@@ -2359,7 +2359,7 @@ server <- function(input, output, session) {
     
   })
   # --- noMatch button closed above
-
+  
   #######################################
   #  Variables for Trade Modal (in UI)  #
   #######################################
@@ -2410,12 +2410,12 @@ server <- function(input, output, session) {
                       as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_A)]))) + 200) # The +200 is just an additional kicker
       
     } else {
-    
-    TeamA_DVI <- sum(na.omit(c(as.numeric(Pick_Points$Points[counter$countervalue]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_A)]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_A)]),
-                               as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_A)]))) + 200)
-    
+      
+      TeamA_DVI <- sum(na.omit(c(as.numeric(Pick_Points$Points[counter$countervalue]),
+                                 as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_A)]),
+                                 as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_A)]),
+                                 as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_A)]))) + 200)
+      
     }
     
     #####
@@ -2448,17 +2448,17 @@ server <- function(input, output, session) {
     
     # IF future picks are involved, sum TeamB_DVI (*** may be a better way to do this)
     if( str_contains(teamtradeWithPicks , "Fut.") == T ) {
-
-    TeamB_Futures <- teamtradeWithPicks %>% str_subset(pattern = "Fut. ")
-
-    TeamB_DVI <- Draft_Order_Future %>%
-     slice(which(Draft_Order_Future$Actual_Pick == teamtradeWith & Draft_Order_Future$Round %in% gsub(x = gsub("([0-9]+).*$", "\\1", TeamB_Futures),pattern = "Fut. " ,  replacement = "") )) %>%
-     summarise(FutTot = sum(FuturePts)) %>% pull(FutTot) +
-     sum(na.omit(c(as.numeric(Pick_Points$Points[as.numeric(input$Pick_1_B)]),
-                   as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_B)]),
-                   as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_B)]),
-                   as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_B)]))))
-
+      
+      TeamB_Futures <- teamtradeWithPicks %>% str_subset(pattern = "Fut. ")
+      
+      TeamB_DVI <- Draft_Order_Future %>%
+        slice(which(Draft_Order_Future$Actual_Pick == teamtradeWith & Draft_Order_Future$Round %in% gsub(x = gsub("([0-9]+).*$", "\\1", TeamB_Futures),pattern = "Fut. " ,  replacement = "") )) %>%
+        summarise(FutTot = sum(FuturePts)) %>% pull(FutTot) +
+        sum(na.omit(c(as.numeric(Pick_Points$Points[as.numeric(input$Pick_1_B)]),
+                      as.numeric(Pick_Points$Points[as.numeric(input$Pick_2_B)]),
+                      as.numeric(Pick_Points$Points[as.numeric(input$Pick_3_B)]),
+                      as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_B)]))))
+      
     } else {
       
       TeamB_DVI <- sum(na.omit(c(as.numeric(Pick_Points$Points[as.numeric(input$Pick_1_B)]),
@@ -2467,18 +2467,18 @@ server <- function(input, output, session) {
                                  as.numeric(Pick_Points$Points[as.numeric(input$Pick_4_B)]))))
     }
     #####
-
+    
     
     #####
     
     # - Trade Modal Interest Bar & Variables
     #####
-
+    
     interestLevel  <<-  ( ((TeamB_DVI/TeamA_DVI)*100) - thresh$hold )
     
     interestColour <<- ifelse(interestLevel <= 40, "danger" , 
-                       ifelse(interestLevel > 40 & interestLevel <= 80, "warning" , 
-                       ifelse(interestLevel >80 , "success" , "info")))
+                              ifelse(interestLevel > 40 & interestLevel <= 80, "warning" , 
+                                     ifelse(interestLevel >80 , "success" , "info")))
     
     #print(paste0("Team A :",TeamA_DVI,"\n",
     #             "Team B :",TeamB_DVI))
@@ -2576,8 +2576,8 @@ server <- function(input, output, session) {
       # Current Picks: 
       teamtradeWithPicks <- as.numeric(teamtradeWithPicks[which(teamtradeWithPicks != "")] %>% as.data.frame() %>% filter(!grepl(x = . , pattern = "Fut.")) %>% pull(.))
       
-     
-
+      
+      
       ### - For-loop to swap picks around in Draft_Order DF - ###
       
       # Team B -- > Team A
@@ -2589,9 +2589,9 @@ server <- function(input, output, session) {
       
       # Team A --- > Team B
       for (i in 1:length(teamwithPickPicks)) {
-
+        
         Draft_Order$Actual_Pick[teamwithPickPicks[i]] <<- teamtradeWith
-
+        
       }
       
       
@@ -2620,7 +2620,7 @@ server <- function(input, output, session) {
         
       }
       
-     
+      
       
       
       
@@ -2655,7 +2655,7 @@ server <- function(input, output, session) {
         
       })
       
-   
+      
       teamwithPick <<- as.character(Draft_Order %>% filter(Pick == counter$countervalue) %>% pull(Actual_Pick)) 
       Team_choices <<- c("",setdiff(c(trade_Teams) , teamwithPick ))
       updateSelectInput(session, inputId = "tradeWith_btn", label = "Select Team To Trade Current Pick With" , choices = Team_choices, selected = Team_choices[2])  
@@ -3040,7 +3040,7 @@ server <- function(input, output, session) {
             "Pick" ,
             color = styleEqual(counter$countervalue,"white") ,
             backgroundColor = styleEqual(counter$countervalue,"#163C91"))
-
+        
       }) # close renderDataTable()
       #####
       
@@ -3125,7 +3125,7 @@ server <- function(input, output, session) {
         pickvar$val <- "5 min."
       }
       
-
+      
     } else {
       
       showModal(modalDialog(
@@ -3161,9 +3161,9 @@ server <- function(input, output, session) {
   #     Timer Functionality     #
   ###############################
   #####    
-
+  
   active <- reactiveVal(FALSE)
-
+  
   # Output the time left.
   output$timeleft <- renderText({
     paste0(sprintf('%02d:%02d', minute(seconds_to_period(pick$time)), second(seconds_to_period(pick$time))))
@@ -3394,10 +3394,10 @@ server <- function(input, output, session) {
           output$userBox_2 <- renderUI({
             widgetUserBox( # 2
               title = paste0("Pick ", counter$countervalue+1,".") , 
-              subtitle = paste0(Draft_Order[1+1,3]) ,
+              subtitle = paste0(Draft_Order[counter$countervalue+1,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+1] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+1]),
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+1,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3412,7 +3412,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+2,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+2] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+2]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+2,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3427,7 +3427,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+3,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+3] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+3]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+3,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3442,7 +3442,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+4,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+4] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+4]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+4,3])) %>% select(BannerURL) %>% pull() , 
               color = 'green',
@@ -3458,7 +3458,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+5,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+5] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+5]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+5,3])) %>% select(BannerURL) %>% pull() , 
               color = 'green',
@@ -3474,7 +3474,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+6,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+6] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+6]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+6,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3489,7 +3489,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+7,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+7] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+7]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+7,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3504,7 +3504,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+8,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+8] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+8]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+8,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3519,7 +3519,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+9,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+9] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+9]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+9,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3534,7 +3534,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+10,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+10] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+10]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+10,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3549,7 +3549,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+11,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+11] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+11]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+11,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3564,7 +3564,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+12,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+12] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+12]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+12,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3579,7 +3579,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+13,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+13] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+13]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+13,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3594,7 +3594,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+14,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+14] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+14]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+14,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3609,7 +3609,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+15,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+15] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+15]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+15,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3624,7 +3624,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+16,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+16] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+16]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+16,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3639,7 +3639,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+17,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+17] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+17]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+17,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3654,7 +3654,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+18,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+18] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+18]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+18,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3669,7 +3669,7 @@ server <- function(input, output, session) {
               subtitle = paste0(Draft_Order[counter$countervalue+19,3]) ,
               type = 2,
               width = 12,
-              src = paste0(Draft_Order$Round[counter$countervalue+19] %>% as.data.frame() %>% rename("Rnd" = 1) %>% inner_join(.,RoundImg , by = c("Rnd" = "Round")) %>% pull(RndImg) ),
+              src = paste0(Draft_Order$RndImg[counter$countervalue+19]) , 
               background = T,
               backgroundUrl = Teams_Data %>% filter(Team == paste0(Draft_Order[counter$countervalue+19,3])) %>% select(BannerURL) %>% pull() , 
               closable = F,
@@ -3711,7 +3711,7 @@ server <- function(input, output, session) {
     })
   })
   
-
+  
   # observers for actionbuttons
   observeEvent(input$start, {active(TRUE)})
   observeEvent(input$stop,  {active(FALSE)})
@@ -3733,7 +3733,7 @@ server <- function(input, output, session) {
   observeEvent(input$closePassed, { 
     removeModal()
   })
-
+  
   # closes the second modal that pops up after you hit Match Bid
   observeEvent(input$closeYes, { 
     removeModal()
@@ -3773,5 +3773,5 @@ server <- function(input, output, session) {
   
 } # close server
 
- 
+
 shinyApp(ui = ui, server = server)
